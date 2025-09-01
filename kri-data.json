@@ -1,0 +1,271 @@
+{
+  "kri2": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 100 },
+      { "period": "Q2-2025", "percentage": 100 }
+    ]
+  },
+  "kri3": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 100 },
+      { "period": "Q2-2025", "percentage": 100 }
+    ]
+  },
+  "kri4": {
+    "data": [
+      { "period": "Q1-2025", "count": 0 },
+      { "period": "Q2-2025", "count": 0 }
+    ]
+  },
+  "kri5": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 0 },
+      { "period": "Q2-2025", "percentage": 0 }
+    ]
+  },
+  "kri6": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 18 },
+      { "period": "Q2-2025", "percentage": 0.6 }
+    ]
+  },
+  "kri8": {
+    "applications": {
+      "BirBank": [
+        { "period": "Q1-2025", "value": 22 },
+        { "period": "Q2-2025", "value": 7 }
+      ],
+      "BirBank-Business": [
+        { "period": "Q1-2025", "value": 29 },
+        { "period": "Q2-2025", "value": 63 }
+      ],
+      "ODIN": [
+        { "period": "Q1-2025", "value": 194 },
+        { "period": "Q2-2025", "value": 285 }
+      ],
+      "ELMA BPM": [
+        { "period": "Q1-2025", "value": 29 },
+        { "period": "Q2-2025", "value": 13 }
+      ],
+      "Optimus": [
+        { "period": "Q1-2025", "value": 51 },
+        { "period": "Q2-2025", "value": 142 }
+      ],
+      "CMS": [
+        { "period": "Q1-2025", "value": 18 },
+        { "period": "Q2-2025", "value": 60 }
+      ],
+      "TWO": [
+        { "period": "Q1-2025", "value": 36 },
+        { "period": "Q2-2025", "value": 15 }
+      ],
+      "Zeus": [
+        { "period": "Q1-2025", "value": 45 },
+        { "period": "Q2-2025", "value": 7 }
+      ]
+    }
+  },
+  "kri9": {
+    "data": [
+      { "period": "Q1-2025", "count": 0 },
+      { "period": "Q2-2025", "count": 0 }
+    ]
+  },
+  "kri10": {
+    "applications": {
+      "BirBank-Business": [
+        { "period": "01-2025", "incidents": 1 },
+        { "period": "02-2025", "incidents": 2 },
+        { "period": "03-2025", "incidents": 1 },
+        { "period": "04-2025", "incidents": 3 }
+      ],
+      "BirBank": [
+        { "period": "01-2025", "incidents": 8.0 },
+        { "period": "02-2025", "incidents": 12 },
+        { "period": "03-2025", "incidents": 12 },
+        { "period": "04-2025", "incidents": 6 },
+        { "period": "05-2025", "incidents": 6 },
+        { "period": "06-2025", "incidents": 9 }
+      ],
+      "CMS": [
+        { "period": "03-2025", "incidents": 3 },
+        { "period": "04-2025", "incidents": 3 }
+      ],
+      "ELMA BPM": [
+        { "period": "03-2025", "incidents": 1 },
+        { "period": "04-2025", "incidents": 2 },
+        { "period": "06-2025", "incidents": 1 }
+      ],
+      "TWO": [
+        { "period": "01-2025", "incidents": 1 },
+        { "period": "02-2025", "incidents": 2 },
+        { "period": "03-2025", "incidents": 1 },
+        { "period": "04-2025", "incidents": 1 },
+        { "period": "06-2025", "incidents": 2 }
+      ],
+      "Zeus": [
+        { "period": "01-2025", "incidents": 3 },
+        { "period": "02-2025", "incidents": 3 },
+        { "period": "03-2025", "incidents": 2 },
+        { "period": "04-2025", "incidents": 1 },
+        { "period": "05-2025", "incidents": 4 },
+        { "period": "06-2025", "incidents": 2 }
+      ],
+      "Optimus": [
+        { "period": "02-2025", "incidents": 2 },
+        { "period": "06-2025", "incidents": 0 }
+      ],
+      "ODIN": []
+    }
+  },
+  "kri12": {
+    "applications": {
+      "BirBank-Business": [
+        { "period": "Q1-2025", "incidents": 2 },
+        { "period": "Q2-2025", "incidents": 2 }
+      ],
+      "BirBank": [
+        { "period": "Q1-2025", "incidents": 18 },
+        { "period": "Q2-2025", "incidents": 12 }
+      ],
+      "CMS": [
+        { "period": "Q1-2025", "incidents": 1 },
+        { "period": "Q2-2025", "incidents": 2 }
+      ],
+      "ELMA BPM": [
+        { "period": "Q1-2025", "incidents": 1 },
+        { "period": "Q2-2025", "incidents": 2 }
+      ],
+      "TWO": [
+        { "period": "Q1-2025", "incidents": 0 },
+        { "period": "Q2-2025", "incidents": 1 }
+      ],
+      "Zeus": [
+        { "period": "Q1-2025", "incidents": 6 },
+        { "period": "Q2-2025", "incidents": 2 }
+      ],
+      "Optimus": [
+        { "period": "Q1-2025", "incidents": 1 },
+        { "period": "Q2-2025", "incidents": 0 }
+      ],
+      "ODIN": [
+        { "period": "Q1-2025", "incidents": 0 },
+        { "period": "Q2-2025", "incidents": 0 }
+      ]
+    }
+  },
+  "kri13": {
+    "applications": {
+      "BirBank": [
+        { "period": "Q1-2025", "value": 14 },
+        { "period": "Q2-2025", "value": 9 }
+      ],
+      "BirBank-Business": [
+        { "period": "Q1-2025", "value": 2 },
+        { "period": "Q2-2025", "value": 1 }
+      ],
+      "ODIN": [
+        { "period": "Q1-2025", "value": 0 },
+        { "period": "Q2-2025", "value": 0 }
+      ],
+      "ELMA BPM": [
+        { "period": "Q1-2025", "value": 0 },
+        { "period": "Q2-2025", "value": 1 }
+      ],
+      "Optimus": [
+        { "period": "Q1-2025", "value": 1 },
+        { "period": "Q2-2025", "value": 0 }
+      ],
+      "CMS": [
+        { "period": "Q1-2025", "value": 2 },
+        { "period": "Q2-2025", "value": 1 }
+      ],
+      "TWO": [
+        { "period": "Q1-2025", "value": 4 },
+        { "period": "Q2-2025", "value": 2 }
+      ],
+      "Zeus": [
+        { "period": "Q1-2025", "value": 1 },
+        { "period": "Q2-2025", "value": 5 }
+      ]
+    }
+  },
+  "kri15": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 71 },
+      { "period": "Q2-2025", "percentage": 24 }
+    ]
+  },
+  "kri18": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 0 },
+      { "period": "Q2-2025", "percentage": 38 }
+    ]
+  },
+  "kri19": {
+    "applications": {
+      "BirBank": [
+        { "period": "Q1-2025", "value": 3125.9 },
+        { "period": "Q2-2025", "value": 3973.4 }
+      ],
+      "BirBank-Business": [
+        { "period": "Q1-2025", "value": 407.5 },
+        { "period": "Q2-2025", "value": 1811 }
+      ],
+      "ODIN": [
+        { "period": "Q1-2025", "value": 0 },
+        { "period": "Q2-2025", "value": 0 }
+      ],
+      "ELMA BPM": [
+        { "period": "Q1-2025", "value": 269 },
+        { "period": "Q2-2025", "value": 892.3 }
+      ],
+      "Optimus": [
+        { "period": "Q1-2025", "value": 207.5 },
+        { "period": "Q2-2025", "value": 0 }
+      ],
+      "CMS": [
+        { "period": "Q1-2025", "value": 73 },
+        { "period": "Q2-2025", "value": 644 }
+      ],
+      "TWO": [
+        { "period": "Q1-2025", "value": 31.25 },
+        { "period": "Q2-2025", "value": 353.6 }
+      ],
+      "Zeus": [
+        { "period": "Q1-2025", "value": 1734.4 },
+        { "period": "Q2-2025", "value": 59.1 }
+      ]
+    }
+  },
+  "kri20": {
+    "data": [
+      { "period": "Q1-2025", "count": 0 },
+      { "period": "Q2-2025", "count": 1 }
+    ]
+  },
+  "kri21": {
+    "data": [
+      { "period": "Q1-2025", "count": 0 },
+      { "period": "Q2-2025", "count": 0 }
+    ]
+  },
+  "kri22": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 94.04 },
+      { "period": "Q2-2025", "percentage": 95.35 }
+    ]
+  },
+  "kri27": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 0 },
+      { "period": "Q2-2025", "percentage": 0 }
+    ]
+  },
+  "kri28": {
+    "data": [
+      { "period": "Q1-2025", "percentage": 0 },
+      { "period": "Q2-2025", "percentage": 2.4 }
+    ]
+  }
+}

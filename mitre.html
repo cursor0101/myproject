@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Interactive Histogram Dashboard</title>
+	<script src="/static/js/chart.min.js"></script>
+    <script src="/static/js/xlsx.full.min.js"></script>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; padding: 20px; }
+		.container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); overflow: hidden; }
+		.content { padding: 40px; }
+		.upload-section { background: #f8f9ff; border: 2px dashed #4facfe; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 30px; transition: all 0.3s ease; max-width: 400px; margin: 0 auto 30px; }
+		.upload-section:hover { border-color: #667eea; background: #f0f4ff; }
+		.upload-section.dragover { border-color: #667eea; background: #e8f0ff; transform: scale(1.02); }
+		.file-input { display: none; }
+		.upload-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-size: 1.1em; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }
+		.upload-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); }
+		.chart-container { display: none; margin-top: 30px; }
+		.chart-canvas-container { max-width: 800px; width: 100%; height: 500px; position: relative; margin: 0 auto 40px; }
+		.chart-info { background: #f8f9ff; padding: 40px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); margin: 0 auto; max-width: 800px; }
+		.selected-info { background: linear-gradient(135deg, #a8edea, #fed6e3); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
+		.selected-info h4 { color: #333; margin-bottom: 10px; font-size: 1.2em; font-weight: 600; text-align: center; }
+		.selected-stats { display: flex; gap: 15px; }
+		.stat-box { background: white; padding: 12px; border-radius: 8px; flex: 1; text-align: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+		.stat-number { font-size: 1.5em; font-weight: bold; color: #667eea; }
+		.stat-label { color: #666; font-size: 0.9em; margin-top: 4px; font-weight: 500; }
+		.mitre-section h3 { color: #667eea; margin-bottom: 30px; font-size: 1.8em; font-weight: 600; text-align: center; }
+		.parameters-list { background: white; padding: 30px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08); }
+		.parameter-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #eee; transition: background-color 0.3s ease; }
+		.parameter-item:hover { background-color: #f8f9ff; border-radius: 8px; margin: 0 -10px; padding: 18px 10px; }
+		.parameter-item:last-child { border-bottom: none; }
+		.parameter-label { font-weight: 600; color: #333; cursor: pointer; flex: 1; font-size: 1.1em; }
+		.parameter-value { font-weight: bold; color: #667eea; margin-left: 10px; font-size: 1.2em; }
+		.parameter-percent { font-size: 1em; color: #888; margin-left: 8px; font-weight: 500; }
+		@media (max-width: 768px) { .selected-stats { flex-direction: column; } .content { padding: 20px; } .chart-info { padding: 25px; } .selected-info { padding: 25px; } .parameters-list { padding: 20px; } }
+		.sidebar-toggle { position: absolute; top: 20px; left: 20px; z-index: 1200; transition: left .25s ease; }
+		.sidebar-toggle button { width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer; color: white; font-size: 20px; font-weight: 800; background: rgb(91, 12, 194); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; transition: transform .2s ease; }
+		.sidebar-toggle button:hover { transform: translateY(-2px); }
+		.sidebar-toggle.shifted { left: 280px; }
+		.side-drawer { position: fixed; top: 0; left: 0; height: 100%; width: 260px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.15); transform: translateX(-100%); transition: transform .25s ease; z-index: 1150; display: flex; flex-direction: column; }
+		.side-drawer.open { transform: translateX(0); }
+		.side-drawer .drawer-header { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; padding: 18px 16px; font-weight: 800; letter-spacing: .5px; }
+		.side-drawer .drawer-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+		.side-drawer .drawer-link { padding: 12px 14px; border-radius: 8px; border: 2px solid #e1e5fe; background: #f8f9ff; font-weight: 700; color: #667eea; cursor: pointer; text-align: left; }
+		.side-drawer .drawer-link.active { border-color: #667eea; background: #eef0ff; }
+		.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.25); backdrop-filter: blur(1px); z-index: 1100; display: none; }
+		.drawer-backdrop.show { display: block; }
+	</style>
+</head>
+<body>
+	<div class="sidebar-toggle">
+		<button id="drawerToggle" aria-label="Open navigation">&lt;</button>
+	</div>
+	<div id="drawerBackdrop" class="drawer-backdrop"></div>
+	<aside id="sideDrawer" class="side-drawer" aria-hidden="true">
+		<div class="drawer-header">Dashboards</div>
+		<div class="drawer-list">
+			<button id="navKRI" class="drawer-link">KRI</button>
+			<button id="navRHI" class="drawer-link">RHI</button>
+			<button id="navMITRE" class="drawer-link active">MITRE</button>
+			<button id="navRISK" class="drawer-link">RISK ANALYSIS</button>
+		</div>
+	</aside>
+
+	<div class="container">
+		<div class="content">
+			<div class="upload-section" id="uploadSection">
+				<div style="font-size: 3em; margin-bottom: 20px; color: #4facfe;">📁</div>
+				<h3 style="margin-bottom: 15px; color: #333;">Upload File</h3>
+				<p style="margin-bottom: 25px; color: #666;">Drag and drop your file here or click to browse</p>
+				<button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+				<input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls" onchange="processIncidentFile(this.files[0])">
+				<p style="margin-top: 15px; font-size: 0.9em; color: #888;"></p>
+			</div>
+
+			<div class="chart-container" id="chartContainer">
+				<div class="chart-wrapper">
+					<div class="chart-canvas-container">
+						<canvas id="pieChart"></canvas>
+					</div>
+
+					<div class="chart-info">
+						<div class="selected-info" id="selectedInfo">
+							<h4 id="selectedLabel">Selected: None</h4>
+							<div class="selected-stats">
+								<div class="stat-box">
+									<div class="stat-number" id="selectedCount">0</div>
+									<div class="stat-label">Count</div>
+								</div>
+								<div class="stat-box">
+									<div class="stat-number" id="selectedPercent">0%</div>
+									<div class="stat-label">Percentage</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="mitre-section">
+							<h3>MITRE ATT&CK Tactic</h3>
+							<div class="parameters-list" id="parametersList"></div>
+						</div>
+					</div>
+				</div>
+				<div style="text-align:center;margin-top:10px;">
+					<button class="upload-btn" onclick="showUpload()">Back to Upload</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const drawer = document.getElementById('sideDrawer');
+		const drawerBackdrop = document.getElementById('drawerBackdrop');
+		const drawerToggle = document.getElementById('drawerToggle');
+		function openDrawer() { drawer.classList.add('open'); drawerBackdrop.classList.add('show'); document.querySelector('.sidebar-toggle').classList.add('shifted'); drawerToggle.textContent = '>'; drawer.setAttribute('aria-hidden','false'); }
+		function closeDrawer() { drawer.classList.remove('open'); drawerBackdrop.classList.remove('show'); document.querySelector('.sidebar-toggle').classList.remove('shifted'); drawerToggle.textContent = '<'; drawer.setAttribute('aria-hidden','true'); }
+		drawerToggle.addEventListener('click', ()=> drawer.classList.contains('open') ? closeDrawer() : openDrawer());
+		drawerBackdrop.addEventListener('click', closeDrawer);
+
+		// Access control: detect read-only mode
+		window.canEdit = true;
+		async function __initAccessMITRE(){
+			try{
+				const res = await fetch('/api/access');
+				const data = await res.json();
+				window.canEdit = !!(data && data.canEdit);
+			}catch(e){ window.canEdit = true; }
+			if(!window.canEdit){
+				const up = document.getElementById('uploadSection'); if(up) up.style.display='none';
+				const backBtn = Array.from(document.querySelectorAll('button')).find(b=> b.textContent && b.textContent.includes('Back to Upload'));
+				if(backBtn) backBtn.style.display='none';
+			}
+		}
+		document.addEventListener('DOMContentLoaded', __initAccessMITRE);
+
+		const navKRI = document.getElementById('navKRI');
+		const navRHI = document.getElementById('navRHI');
+		const navMITRE = document.getElementById('navMITRE');
+		const navRISK = document.getElementById('navRISK');
+		function setActiveNav(btn) { [navKRI, navRHI, navMITRE, navRISK].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+		navKRI.addEventListener('click', ()=>{ setActiveNav(navKRI); closeDrawer(); window.location.href='/kri'; });
+		navRHI.addEventListener('click', ()=>{ setActiveNav(navRHI); closeDrawer(); window.location.href='/rhi'; });
+		navMITRE.addEventListener('click', ()=>{ setActiveNav(navMITRE); closeDrawer(); });
+		navRISK.addEventListener('click', ()=>{ setActiveNav(navRISK); closeDrawer(); window.location.href='/risk-analysis'; });
+		document.addEventListener('DOMContentLoaded', ()=> setActiveNav(navMITRE));
+
+		let chart;
+		let chartData = [];
+		window.allParametersData = [];
+
+		async function loadLatestFromServer(){
+			try{
+				const res = await fetch('/api/mitre/latest');
+				if(!res.ok) throw new Error('HTTP '+res.status);
+				const payload = await res.json();
+				if(payload.exists && payload.dataset){
+					const ds = payload.dataset;
+					chartData = ds.chartData || [];
+					window.allParametersData = ds.allParametersData || [];
+					document.getElementById('uploadSection').style.display='none';
+					document.getElementById('chartContainer').style.display='block';
+					setTimeout(()=>{ createHistogram(); updateParametersList(); }, 100);
+				}else{
+					document.getElementById('uploadSection').style.display='block';
+					document.getElementById('chartContainer').style.display='none';
+				}
+			}catch(e){
+				document.getElementById('uploadSection').style.display='block';
+				document.getElementById('chartContainer').style.display='none';
+			}
+		}
+
+		function showUpload(){
+			document.getElementById('uploadSection').style.display='block';
+			document.getElementById('chartContainer').style.display='none';
+			document.getElementById('fileInput').value='';
+			document.getElementById('selectedInfo').style.display='none';
+			if(chart) chart.destroy();
+			chartData = [];
+			window.allParametersData = [];
+		}
+
+		const uploadSection = document.getElementById('uploadSection');
+		uploadSection.addEventListener('dragover', (e)=>{ e.preventDefault(); uploadSection.classList.add('dragover'); });
+		uploadSection.addEventListener('dragleave', ()=> uploadSection.classList.remove('dragover'));
+		uploadSection.addEventListener('drop', (e)=>{ e.preventDefault(); uploadSection.classList.remove('dragover'); const files = e.dataTransfer.files; if(files.length>0) processIncidentFile(files[0]); });
+
+		async function processIncidentFile(file) {
+			if(!window.canEdit){ alert('Editing is disabled for your IP'); return; }
+			if (!file) { alert('No file selected.'); return; }
+			if (!file.name.match(/\.(xlsx|xls)$/)) { alert('Please select an Excel file (.xlsx or .xls)'); return; }
+			const reader = new FileReader();
+			reader.onload = async function(e) {
+				try {
+					const data = new Uint8Array(e.target.result);
+					const workbook = XLSX.read(data, { type: 'array' });
+					const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+					const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+					processExcelData(jsonData);
+					await saveToServer(file.name);
+					document.getElementById('uploadSection').style.display='none';
+					document.getElementById('chartContainer').style.display='block';
+					setTimeout(()=>{ createHistogram(); updateParametersList(); }, 100);
+				} catch (error) {
+					alert('Error reading Excel file.');
+					console.error('Error:', error);
+				}
+			};
+			reader.readAsArrayBuffer(file);
+		}
+
+		function processExcelData(data) {
+			if (data.length < 2) { alert('Excel file must have at least a header row and one data row.'); return; }
+			const header = data[0];
+			const tacticColumnIndex = header.indexOf('MITRE ATT&CK Tactic');
+			if (tacticColumnIndex === -1) { alert('Excel file must contain a column named "MITRE ATT&CK Tactic".'); return; }
+			chartData = [];
+			let totalRecords = 0;
+			let allData = [];
+			const tacticCounts = {};
+			for (let i = 1; i < data.length; i++) {
+				const row = data[i];
+				if (!row || row.length < tacticColumnIndex + 1) continue;
+				let tacticValue = row[tacticColumnIndex];
+				tacticValue = tacticValue == null ? '' : String(tacticValue).trim();
+				if (tacticValue === 'null' || tacticValue === 'undefined') tacticValue = '';
+				tacticCounts[tacticValue] = (tacticCounts[tacticValue] || 0) + 1;
+				totalRecords += 1;
+			}
+			for (const [tactic, count] of Object.entries(tacticCounts)) {
+				const percentage = totalRecords > 0 ? (count / totalRecords) * 100 : 0;
+				const label = tactic === '' ? 'Not tagged with MITRE ATT&CK Tactic' : tactic;
+				const item = { label, count, percentage, isUntagged: tactic === '' };
+				allData.push(item);
+				if (!item.isUntagged) chartData.push(item);
+			}
+			chartData.sort((a, b) => b.count - a.count);
+			allData.sort((a, b) => b.count - a.count);
+			window.allParametersData = allData;
+		}
+
+		async function saveToServer(filename){
+			if(!window.canEdit){ throw new Error('Editing disabled'); }
+			try{
+				await fetch('/api/mitre/upload', {
+					method:'POST',
+					headers:{'Content-Type':'application/json'},
+					body: JSON.stringify({ filename, chartData, allParametersData: window.allParametersData })
+				});
+			}catch(e){ /* ignore */ }
+		}
+
+		function createHistogram() {
+			const ctx = document.getElementById('pieChart').getContext('2d');
+			const colors = generateColors(chartData.length);
+			if (chart) chart.destroy();
+			chart = new Chart(ctx, {
+				type: 'bar',
+				data: {
+					labels: chartData.map(item => item.label),
+					datasets: [{
+						label: 'Counts',
+						data: chartData.map(item => item.count),
+						backgroundColor: colors,
+						borderColor: colors.map(color => color.replace('0.8', '1')),
+						borderWidth: 2
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: true,
+					plugins: {
+						legend: { display: false },
+						tooltip: { callbacks: { label: function(context) { const item = chartData[context.dataIndex]; return `${context.label}: ${item.count} (${item.percentage.toFixed(2)}%)`; } } },
+						title: { display: true, text: 'Incident Exposure', font: { size: 22 }, color: '#667eea' }
+					},
+					scales: {
+						x: { title: { display: true, text: 'MITRE ATT&CK Tactic' }, ticks: { display: false } },
+						y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+					},
+					onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; showSelectedInfo(chartData[index]); } },
+					animation: { duration: 1200, easing: 'easeOutBounce' }
+				}
+			});
+		}
+
+		function generateColors(count) {
+			const baseColors = ['#3498db','#2980b9','#5dade2','#1f77b4','#4a90e2','#2e86de','#54a0ff','#74b9ff','#0984e3','#6c5ce7','#a29bfe','#fd79a8'];
+			const colors = [];
+			for (let i = 0; i < count; i++) { const baseColor = baseColors[i % baseColors.length]; colors.push(baseColor + 'CC'); }
+			return colors;
+		}
+
+		function updateParametersList() {
+			const parametersList = document.getElementById('parametersList');
+			parametersList.innerHTML = '';
+			(window.allParametersData || []).forEach((item) => {
+				const parameterItem = document.createElement('div');
+				parameterItem.className = 'parameter-item';
+				parameterItem.style.cursor = item.isUntagged ? 'default' : 'pointer';
+				parameterItem.innerHTML = `
+					<span class="parameter-label">${item.label}</span>
+					<span class="parameter-value">${item.count}</span>
+					<span class="parameter-percent">(${item.percentage.toFixed(2)}%)</span>
+				`;
+				if (!item.isUntagged) parameterItem.addEventListener('click', () => { showSelectedInfo(item); });
+				parametersList.appendChild(parameterItem);
+			});
+		}
+
+		function showSelectedInfo(item) {
+			document.getElementById('selectedInfo').style.display = 'block';
+			document.getElementById('selectedLabel').textContent = `Selected: ${item.label}`;
+			document.getElementById('selectedCount').textContent = item.count.toLocaleString();
+			document.getElementById('selectedPercent').textContent = `${item.percentage.toFixed(2)}%`;
+		}
+
+		window.addEventListener('load', loadLatestFromServer);
+	</script>
+</body>
+</html>

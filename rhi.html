@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Risk Health Indicator Metrics</title>
+	<script src="/static/js/chart.min.js"></script>
+	<style>
+		:root {
+			--primary: #667eea;
+			--secondary: #764ba2;
+			--success: #4caf50;
+			--warning: #ff9800;
+			--danger: #f44336;
+			--light-bg: #f8f9fa;
+			--card-bg: #ffffff;
+			--border: #e1e5fe;
+			--text: #333;
+			--text-light: #666;
+			--shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			--gradient-bg: linear-gradient(135deg, #667eea, #764ba2);
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			margin: 0; padding: 0; background: var(--light-bg); color: var(--text);
+			background-color: rgb(195, 207, 219);
+			min-height: 100vh; transition: all 0.3s ease;
+		}
+
+		.container { max-width: 100%; margin: 0 auto; position: relative; width: 100%; padding: 20px; }
+
+		.dashboard-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; justify-content: center; }
+
+		.header { grid-column: 1 / -1; text-align: center; padding: 20px; background: var(--gradient-bg); color: white; border-radius: 12px; margin-bottom: 20px; }
+
+		.dashboard-card { background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 20px; text-align: center; transition: transform 0.3s ease; height: 100%; display: flex; flex-direction: column; justify-content: space-between; min-height: 350px; min-width: 0; }
+		.dashboard-card:hover { transform: translateY(-5px); }
+		.dashboard-card h2 { margin: 0 0 10px 0; font-size: 22px; color: var(--primary); }
+		.dashboard-card p { margin: 0 0 10px 0; font-size: 14px; color: var(--text-light); line-height: 1.4; }
+		.chart-container { position: relative; height: 180px; margin-top: 10px; flex-grow: 1; min-width: 0; }
+		.chart-container canvas { width: 100% !important; height: 100% !important; display: block; }
+
+		.btn-view { padding: 10px 20px; background: var(--gradient-bg); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform 0.2s; margin-top: auto; }
+		.btn-view:hover { transform: translateY(-2px); }
+
+		.dashboard { display: none; width: 100%; min-height: 100vh; padding: 20px; background: var(--light-bg); }
+
+		.back-button { position: absolute; top: 20px; left: 70px; padding: 10px 20px; background: white; color: var(--primary); border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: var(--shadow); display: flex; align-items: center; }
+		.back-button::before { content: '←'; margin-right: 8px; }
+		.back-button:hover { background: var(--primary); color: white; transform: translateY(-2px); }
+
+		.data-status { position: fixed; top: 20px; right: 20px; padding: 10px 15px; border-radius: 6px; font-size: 14px; font-weight: 600; z-index: 1000; opacity: 0.9; }
+		.data-status.success { background: var(--success); color: white; }
+		.data-status.error { background: var(--danger); color: white; }
+
+		/* Sidebar */
+		.sidebar-toggle { position: absolute; top: 20px; left: 20px; z-index: 1200; transition: left .25s ease; }
+		.sidebar-toggle button { width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer; color: white; font-size: 20px; font-weight: 800; background: rgb(91, 12, 194); box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; transition: transform .2s ease; }
+		.sidebar-toggle button:hover { transform: translateY(-2px); }
+		.sidebar-toggle.shifted { left: 280px; }
+		.side-drawer { position: fixed; top: 0; left: 0; height: 100%; width: 260px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.15); transform: translateX(-100%); transition: transform .25s ease; z-index: 1150; display: flex; flex-direction: column; }
+		.side-drawer.open { transform: translateX(0); }
+		.side-drawer .drawer-header { background: var(--gradient-bg); color: #fff; padding: 18px 16px; font-weight: 800; letter-spacing: .5px; }
+		.side-drawer .drawer-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+		.side-drawer .drawer-link { padding: 12px 14px; border-radius: 8px; border: 2px solid var(--border); background: #f8f9ff; font-weight: 700; color: var(--primary); cursor: pointer; text-align: left; }
+		.side-drawer .drawer-link.active { border-color: var(--primary); background: #eef0ff; }
+		.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.25); backdrop-filter: blur(1px); z-index: 1100; display: none; }
+		.drawer-backdrop.show { display: block; }
+
+		/* Sections */
+		.dashboard .card { background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 24px; overflow: hidden; }
+		.dashboard .card .header { background: var(--gradient-bg); color: white; padding: 32px; text-align: center; }
+		.dashboard .card .header h1 { margin: 0 0 8px 0; font-size: 28px; font-weight: 700; }
+		.dashboard .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; padding: 24px; }
+		.dashboard .kpi-cards { display: grid; gap: 16px; }
+		.dashboard .kpi-card { padding: 20px; background: linear-gradient(135deg, #f8f9ff, #e8eaff); border: 2px solid var(--border); border-radius: 8px; text-align: center; }
+		.dashboard .kpi-value { font-size: 32px; font-weight: 800; margin-bottom: 8px; color: var(--primary); }
+		.dashboard .kpi-label { font-size: 14px; color: var(--text-light); margin-bottom: 12px; }
+		.dashboard .section-title { margin: 0 0 24px 0; padding: 0 24px; font-size: 20px; font-weight: 700; }
+
+		.forms-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; padding: 24px; }
+		.form-section { padding: 24px; background: var(--light-bg); border-radius: 8px; }
+		.form-section h3 { margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: var(--primary); }
+		.form-group { margin-bottom: 16px; }
+		.form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+		.form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 6px; font-size: 16px; transition: border-color 0.3s; }
+		.btn { width: 100%; padding: 12px 20px; background: var(--gradient-bg); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+		.btn:hover { transform: translateY(-2px); }
+		.btn-success { background: linear-gradient(135deg, var(--success), #45a049); }
+		.btn-danger { background: linear-gradient(135deg, var(--danger), #d32f2f); }
+
+		@media (max-width: 768px) { .dashboard .grid { grid-template-columns: 1fr; } }
+
+		/* Global controls (top-right) */
+		.global-controls {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			z-index: 1400;
+			display: flex;
+			gap: 8px;
+		}
+		.global-controls .ctrl-btn {
+			padding: 10px 14px;
+			border: none;
+			border-radius: 6px;
+			color: #fff;
+			font-weight: 700;
+			cursor: pointer;
+			box-shadow: var(--shadow);
+			background: #764ba2;
+		}
+		.global-controls .ctrl-btn.secondary { background: #667eea; }
+
+		.global-filter-panel {
+			position: absolute;
+			top: 72px;
+			right: 20px;
+			width: 280px;
+			background: #fff;
+			border-radius: 10px;
+			box-shadow: 0 10px 30px rgba(0,0,0,.15);
+			z-index: 1400;
+			padding: 14px;
+			display: none;
+		}
+		.global-filter-panel.open { display: block; }
+		.global-filter-panel h4 { margin: 0 0 10px 0; color: var(--primary); }
+		.global-filter-panel .form-group { margin-bottom: 12px; }
+		.global-filter-panel select {
+			width: 100%;
+			padding: 10px;
+			border: 2px solid var(--border);
+			border-radius: 6px;
+			font-size: 14px;
+		}
+		.global-filter-panel .actions {
+			display: flex; gap: 8px; margin-top: 8px;
+		}
+		.global-filter-panel .actions button {
+			flex: 1;
+			border: none; border-radius: 6px; padding: 10px 12px; color: #fff; cursor: pointer; font-weight: 700;
+		}
+		.global-filter-panel .apply { background: #667eea; }
+		.global-filter-panel .clear { background: #999; }
+	</style>
+</head>
+
+<body>
+	<div class="sidebar-toggle">
+		<button id="drawerToggle" aria-label="Open navigation">&lt;</button>
+	</div>
+	<div id="drawerBackdrop" class="drawer-backdrop"></div>
+	<aside id="sideDrawer" class="side-drawer" aria-hidden="true">
+		<div class="drawer-header">Dashboards</div>
+		<div class="drawer-list">
+			<button id="navKRI" class="drawer-link">KRI</button>
+			<button id="navRHI" class="drawer-link active">RHI</button>
+			<button id="navMITRE" class="drawer-link">MITRE</button>
+            <button id="navRISK" class="drawer-link">RISK ANALYSIS</button>
+		</div>
+	</aside>
+
+	<!-- Global controls -->
+	<div class="global-controls">
+		<button id="rhiFilterBtn" class="ctrl-btn">Filter</button>
+		<button id="rhiExportBtn" class="ctrl-btn secondary">Export</button>
+	</div>
+	<!-- Filter panel -->
+	<div id="rhiFilterPanel" class="global-filter-panel" aria-hidden="true">
+		<h4>Filter by Year & Quarter</h4>
+		<div class="form-group">
+			<label for="rhiYearSelect">Year</label>
+			<select id="rhiYearSelect">
+				<option value="">Select year...</option>
+			</select>
+		</div>
+		<div class="form-group">
+			<label for="rhiQuarterSelect">Quarter</label>
+			<select id="rhiQuarterSelect">
+				<option value="">Select quarter...</option>
+				<option value="Q1">Q1</option>
+				<option value="Q2">Q2</option>
+				<option value="Q3">Q3</option>
+				<option value="Q4">Q4</option>
+			</select>
+		</div>
+		<div class="actions">
+			<button class="apply" id="rhiApplyFilter">Apply</button>
+			<button class="clear" id="rhiClearFilter">Clear</button>
+		</div>
+	</div>
+	<!-- Export panel -->
+	<div id="rhiExportPanel" class="global-filter-panel" aria-hidden="true">
+		<h4>Export Report</h4>
+		<div class="form-group" style="margin-top:10px;">
+			<label for="rhiExportFormat">Export Format</label>
+			<select id="rhiExportFormat">
+				<option value="html">HTML</option>
+				<option value="pdf">PDF</option>
+				<option value="docx">DOCX</option>
+			</select>
+		</div>
+		<button class="apply" id="rhiExportDownload" style="width:100%;margin-top:6px;">Download</button>
+		<div style="margin-top:8px;color:#666;font-size:12px;">If no filter is set, exports all data.</div>
+	</div>
+
+	<div id="dataStatus" class="data-status" style="display: none;"></div>
+
+	<div class="container" id="mainPage">
+		<div class="header">
+			<h1>Risk Health Indicator Metrics</h1>
+		</div>
+		<div class="dashboard-grid">
+			<!-- Ascending order -->
+			<div class="dashboard-card">
+				<h2>RHI96</h2>
+				<b>Internal cyber risk</b>
+				<p># of unprevented insider cyber incidents</p>
+				<div class="chart-container"><canvas id="rhi96ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi96')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI97</h2>
+				<b>Internal cyber risk</b>
+				<p># incidents with critical/extreme business impact</p>
+				<div class="chart-container"><canvas id="rhi97ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi97')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI98</h2>
+				<b>Internal cyber risk</b>
+				<p># unauthorized uses / total employees</p>
+				<div class="chart-container"><canvas id="rhi98ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi98')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI100</h2>
+				<b>Internal cyber risk</b>
+				<p>% of failed simulated phishing attacks by employees</p>
+				<div class="chart-container"><canvas id="rhi100ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi100')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI101</h2>
+				<b>Internal cyber risk</b>
+				<p>% reported simulated phishing emails</p>
+				<div class="chart-container"><canvas id="rhi101ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi101')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI102</h2>
+				<b>Internal cyber risk</b>
+				<p>Mean time to remove user access from Active Directory (hours)</p>
+				<div class="chart-container"><canvas id="rhi102ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi102')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI103</h2>
+				<b>Internal cyber risk</b>
+				<p>Mean time to remove user access from non-SSO apps (hours)</p>
+				<div class="chart-container"><canvas id="rhi103ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi103')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI104</h2>
+				<b>Internal cyber risk</b>
+				<p>Maximum time to remove privileged user access account (hours)</p>
+				<div class="chart-container"><canvas id="rhi104ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi104')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI105</h2>
+				<b>External cyber risk</b>
+				<p>% endpoints infected and compromised (yearly)</p>
+				<div class="chart-container"><canvas id="rhi105ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi105')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI106</h2>
+				<b>External cyber risk</b>
+				<p>Mean time to isolate compromised endpoints</p>
+				<div class="chart-container"><canvas id="rhi106ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi106')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI107</h2>
+				<b>External cyber risk</b>
+				<p>Mean time to remediate compromised endpoints</p>
+				<div class="chart-container"><canvas id="rhi107ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi107')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI108</h2>
+				<b>External cyber risk</b>
+				<p>% endpoints without up-to-date AV/anti-malware (yearly)</p>
+				<div class="chart-container"><canvas id="rhi108ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi108')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI109</h2>
+				<b>External cyber risk</b>
+				<p>% downtime incidents exceeded agreed RTO (monthly)</p>
+				<div class="chart-container"><canvas id="rhi109ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi109')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI110</h2>
+				<b>External cyber risk</b>
+				<p>% unmonitored critical assets (quarterly)</p>
+				<div class="chart-container"><canvas id="rhi110ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi110')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI111</h2>
+				<b>External cyber risk</b>
+				<p># of external cyber incidents triggering critical/extreme impact</p>
+				<div class="chart-container"><canvas id="rhi111ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi111')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI112</h2>
+				<b>External cyber risk</b>
+				<p># of third-party cyber incidents triggering critical/extreme impact</p>
+				<div class="chart-container"><canvas id="rhi112ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi112')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI113</h2>
+				<b>External cyber risk</b>
+				<p># of cyber incidents caused by physical security issues</p>
+				<div class="chart-container"><canvas id="rhi113ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi113')">View Details</button>
+			</div>
+
+			<!-- New RHIs -->
+			<div class="dashboard-card">
+				<h2>RHI121</h2>
+				<b>General cyber risk</b>
+				<p>% of cybersecurity non-compliance findings vs regulatory controls tested</p>
+				<div class="chart-container"><canvas id="rhi121ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi121')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI122</h2>
+				<b>General cyber risk</b>
+				<p>% of data loss occurrences out of all cyber incidents</p>
+				<div class="chart-container"><canvas id="rhi122ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi122')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI123</h2>
+				<b>General cyber risk</b>
+				<p>% of real cyber threat alerts out of all relevant alerts</p>
+				<div class="chart-container"><canvas id="rhi123ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi123')">View Details</button>
+			</div>
+			<div class="dashboard-card">
+				<h2>RHI158</h2>
+				<b>Resilience</b>
+				<p>% of critical processes/systems without current BCPs</p>
+				<div class="chart-container"><canvas id="rhi158ComparisonChartMain"></canvas></div>
+				<button class="btn-view" onclick="navigateTo('rhi158')">View Details</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI100 Detail (ratio quarterly) -->
+	<div class="container dashboard" id="rhi100Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI100: % of failed simulated phishing attacks by employees</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi100CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi100YtdAvg">-</div>
+							<div class="kpi-label">YTD Average</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi100FilterStart"><option value="">Start...</option></select>
+							<select id="rhi100FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi100TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Quarter Comparison</h2><div class="chart-container"><canvas id="rhi100ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi100DataForm">
+						<div class="form-group">
+							<label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi100Quarter" required>
+									<option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+								</select>
+								<select id="rhi100Year" required>
+									<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label>Number of employees failing a phishing simulation (quarter)</label>
+							<input type="number" min="0" step="1" id="rhi100Numerator" required>
+						</div>
+						<div class="form-group">
+							<label>Total number of employees included in the phishing simulation (quarter)</label>
+							<input type="number" min="1" step="1" id="rhi100Denominator" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi100DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi100UpdateForm">
+						<div class="form-group">
+							<label>Existing Period</label>
+							<input type="text" id="rhi100UpdatePeriod" placeholder="Qx-YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Fails (optional)</label>
+							<input type="number" min="0" step="1" id="rhi100UpdateNumerator">
+						</div>
+						<div class="form-group">
+							<label>New Total (optional)</label>
+							<input type="number" min="1" step="1" id="rhi100UpdateDenominator">
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi100UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi100DeleteForm">
+						<div class="form-group">
+							<label>Period</label>
+							<select id="rhi100DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi100DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI96 Detail -->
+	<div class="container dashboard" id="rhi96Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI96: Unprevented insider cyber incidents</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi96CurrentValue">-</div>
+							<div class="kpi-label">Latest Month</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi96YearTotal">-</div>
+							<div class="kpi-label">Yearly Total</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi96FilterStart"><option value="">Start...</option></select>
+							<select id="rhi96FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi96TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Month Comparison</h2>
+			<div class="chart-container"><canvas id="rhi96ComparisonChart"></canvas></div>
+		</div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi96DataForm">
+						<div class="form-group">
+							<label>Period (MM-YYYY):</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi96Month" required>
+									<option value="01">January</option>
+									<option value="02">February</option>
+									<option value="03">March</option>
+									<option value="04">April</option>
+									<option value="05">May</option>
+									<option value="06">June</option>
+									<option value="07">July</option>
+									<option value="08">August</option>
+									<option value="09">September</option>
+									<option value="10">October</option>
+									<option value="11">November</option>
+									<option value="12">December</option>
+								</select>
+								<select id="rhi96Year" required>
+									<option value="2024" selected>2024</option>
+									<option value="2025">2025</option>
+									<option value="2026">2026</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label>Value</label>
+							<input type="number" min="0" step="1" id="rhi96Value" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi96DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi96UpdateForm">
+						<div class="form-group">
+							<label>Period (MM-YYYY)</label>
+							<input type="text" id="rhi96UpdatePeriod" placeholder="MM-YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Value</label>
+							<input type="number" min="0" step="1" id="rhi96UpdateValue" required>
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi96UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi96DeleteForm">
+						<div class="form-group">
+							<label>Period</label>
+							<select id="rhi96DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi96DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI97 Detail -->
+	<div class="container dashboard" id="rhi97Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI97: Insider incidents with critical/extreme impact</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi97CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi97YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi97FilterStart"><option value="">Start...</option></select>
+							<select id="rhi97FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi97TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi97ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi97DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi97Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi97Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Value</label><input type="number" min="0" step="1" id="rhi97Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi97DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi97UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi97UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Value</label><input type="number" min="0" step="1" id="rhi97UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi97UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi97DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi97DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi97DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI98 Detail -->
+	<div class="container dashboard" id="rhi98Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI98: Unauthorized uses / total employees</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi98CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi98YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi98FilterStart"><option value="">Start...</option></select>
+							<select id="rhi98FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi98TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi98ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi98DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi98Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi98Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Value</label><input type="number" min="0" step="1" id="rhi98Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi98DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi98UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi98UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Value</label><input type="number" min="0" step="1" id="rhi98UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi98UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi98DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi98DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi98DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI101 (ratio quarterly) -->
+	<div class="container dashboard" id="rhi101Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI101: % of simulated phishing attacks successfully reported by employees</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi101CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi101YtdAvg">-</div>
+							<div class="kpi-label">YTD Average</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi101FilterStart"><option value="">Start...</option></select>
+							<select id="rhi101FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi101TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Quarter Comparison</h2><div class="chart-container"><canvas id="rhi101ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi101DataForm">
+						<div class="form-group">
+							<label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi101Quarter" required>
+									<option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+								</select>
+								<select id="rhi101Year" required>
+									<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label># of simulated phishing emails successfully reported by employees</label>
+							<input type="number" min="0" step="1" id="rhi101Numerator" required>
+						</div>
+						<div class="form-group">
+							<label>Total # of simulated phishing emails</label>
+							<input type="number" min="1" step="1" id="rhi101Denominator" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi101DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi101UpdateForm">
+						<div class="form-group">
+							<label>Existing Period</label>
+							<input type="text" id="rhi101UpdatePeriod" placeholder="Qx-YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Reported (optional)</label>
+							<input type="number" min="0" step="1" id="rhi101UpdateNumerator">
+						</div>
+						<div class="form-group">
+							<label>New Total (optional)</label>
+							<input type="number" min="1" step="1" id="rhi101UpdateDenominator">
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi101UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi101DeleteForm">
+						<div class="form-group">
+							<label>Period</label>
+							<select id="rhi101DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi101DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI102 Detail -->
+	<div class="container dashboard" id="rhi102Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI102: Mean time to remove AD access (hours)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi102CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi102YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi102FilterStart"><option value="">Start...</option></select>
+							<select id="rhi102FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi102TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi102ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi102DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi102Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi102Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Hours</label><input type="number" min="0" step="0.01" id="rhi102Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi102DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi102UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi102UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Hours</label><input type="number" min="0" step="0.01" id="rhi102UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi102UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi102DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi102DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi102DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI103 Detail -->
+	<div class="container dashboard" id="rhi103Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI103: Mean time to remove non-SSO access (hours)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi103CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi103YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi103FilterStart"><option value="">Start...</option></select>
+							<select id="rhi103FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi103TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi103ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi103DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi103Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi103Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Hours</label><input type="number" min="0" step="0.01" id="rhi103Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi103DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi103UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi103UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Hours</label><input type="number" min="0" step="0.01" id="rhi103UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi103UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi103DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi103DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi103DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI104 Detail -->
+	<div class="container dashboard" id="rhi104Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI104: Maximum time to remove privileged account (hours)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi104CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi104YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi104FilterStart"><option value="">Start...</option></select>
+							<select id="rhi104FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi104TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi104ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi104DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi104Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi104Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Hours</label><input type="number" min="0" step="0.01" id="rhi104Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi104DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi104UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi104UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Hours</label><input type="number" min="0" step="0.01" id="rhi104UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi104UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi104DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi104DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi104DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI105 (ratio yearly) -->
+	<div class="container dashboard" id="rhi105Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI105: % of endpoints infected and compromised by malware out of total endpoints</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi105CurrentValue">-</div>
+							<div class="kpi-label">Latest Year</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi105YtdAvg">-</div>
+							<div class="kpi-label">Year Average</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Year):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi105FilterStart"><option value="">Start...</option></select>
+							<select id="rhi105FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi105TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Year Comparison</h2><div class="chart-container"><canvas id="rhi105ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi105DataForm">
+						<div class="form-group">
+							<label>Year</label>
+							<select id="rhi105Year" required>
+								<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label># of endpoints infected and compromised leading to rebuild</label>
+							<input type="number" min="0" step="1" id="rhi105Numerator" required>
+						</div>
+						<div class="form-group">
+							<label>Total # of endpoints</label>
+							<input type="number" min="1" step="1" id="rhi105Denominator" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi105DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi105UpdateForm">
+						<div class="form-group">
+							<label>Year</label>
+							<input type="text" id="rhi105UpdatePeriod" placeholder="YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Infected (optional)</label>
+							<input type="number" min="0" step="1" id="rhi105UpdateNumerator">
+						</div>
+						<div class="form-group">
+							<label>New Total (optional)</label>
+							<input type="number" min="1" step="1" id="rhi105UpdateDenominator">
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi105UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi105DeleteForm">
+						<div class="form-group">
+							<label>Year</label>
+							<select id="rhi105DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi105DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI106 Detail -->
+	<div class="container dashboard" id="rhi106Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI106: Mean time to isolate compromised endpoints</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi106CurrentValue">-</div><div class="kpi-label">Latest Month (hours)</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi106YearTotal">-</div><div class="kpi-label">Yearly Total (hours)</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi106FilterStart"><option value="">Start...</option></select>
+							<select id="rhi106FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi106TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi106ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi106DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi106Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi106Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Hours</label><input type="number" min="0" step="0.01" id="rhi106Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi106DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi106UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi106UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Hours</label><input type="number" min="0" step="0.01" id="rhi106UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi106UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi106DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi106DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi106DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI107 (duration HMS) -->
+	<div class="container dashboard" id="rhi107Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI107: Mean time to remediate compromised endpoints</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi107CurrentValue">-</div><div class="kpi-label">Latest Month (HH:MM:SS)</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi107YearTotal">-</div><div class="kpi-label">Yearly Total (HH:MM:SS)</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi107FilterStart"><option value="">Start...</option></select>
+							<select id="rhi107FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi107TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi107ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi107DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi107Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi107Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Duration (Hours, Minutes, Seconds)</label>
+							<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+								<input type="number" min="0" step="1" id="rhi107Hours" placeholder="Hours" value="0">
+								<input type="number" min="0" step="1" id="rhi107Minutes" placeholder="Minutes" value="0">
+								<input type="number" min="0" step="1" id="rhi107Seconds" placeholder="Seconds" value="0">
+							</div>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi107DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi107UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi107UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Duration (H, M, S)</label>
+							<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+								<input type="number" min="0" step="1" id="rhi107UpdateHours" placeholder="Hours" value="0">
+								<input type="number" min="0" step="1" id="rhi107UpdateMinutes" placeholder="Minutes" value="0">
+								<input type="number" min="0" step="1" id="rhi107UpdateSeconds" placeholder="Seconds" value="0">
+							</div>
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi107UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi107DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi107DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi107DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI108 (ratio yearly) -->
+	<div class="container dashboard" id="rhi108Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI108: % of endpoints without up-to-date antivirus and anti-malware solutions</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi108CurrentValue">-</div><div class="kpi-label">Latest Year</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi108YtdAvg">-</div><div class="kpi-label">Year Average</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Year):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi108FilterStart"><option value="">Start...</option></select>
+							<select id="rhi108FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi108TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Year Comparison</h2><div class="chart-container"><canvas id="rhi108ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi108DataForm">
+						<div class="form-group">
+							<label>Year</label>
+							<select id="rhi108Year" required>
+								<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label># of endpoints without current antivirus and anti-malware solutions</label>
+							<input type="number" min="0" step="1" id="rhi108Numerator" required>
+						</div>
+						<div class="form-group">
+							<label>Total # of endpoints</label>
+							<input type="number" min="1" step="1" id="rhi108Denominator" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi108DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi108UpdateForm">
+						<div class="form-group">
+							<label>Year</label>
+							<input type="text" id="rhi108UpdatePeriod" placeholder="YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Count (optional)</label>
+							<input type="number" min="0" step="1" id="rhi108UpdateNumerator">
+						</div>
+						<div class="form-group">
+							<label>New Total (optional)</label>
+							<input type="number" min="1" step="1" id="rhi108UpdateDenominator">
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi108UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi108DeleteForm">
+						<div class="form-group">
+							<label>Year</label>
+							<select id="rhi108DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi108DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI109 (ratio monthly) -->
+	<div class="container dashboard" id="rhi109Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI109: % of service downtime incidents exceeded agreed RTO (critical systems)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi109CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi109YearTotal">-</div><div class="kpi-label">Year Average</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi109FilterStart"><option value="">Start...</option></select>
+							<select id="rhi109FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi109TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi109ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi109DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi109Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi109Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label># exceeded RTO (critical systems)</label><input type="number" min="0" step="1" id="rhi109Numerator" required></div>
+						<div class="form-group"><label>Total # of downtime incidents</label><input type="number" min="1" step="1" id="rhi109Denominator" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi109DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi109UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi109UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New # exceeded RTO</label><input type="number" min="0" step="1" id="rhi109UpdateNumerator"></div>
+						<div class="form-group"><label>New Total incidents</label><input type="number" min="1" step="1" id="rhi109UpdateDenominator"></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi109UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi109DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi109DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi109DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI110 (ratio quarterly) -->
+	<div class="container dashboard" id="rhi110Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI110: % of critical assets unmonitored by SOC/SIEM (per BIA)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi110CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="rhi110YtdAvg">-</div>
+							<div class="kpi-label">YTD Average</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi110FilterStart"><option value="">Start...</option></select>
+							<select id="rhi110FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi110TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Quarter Comparison</h2><div class="chart-container"><canvas id="rhi110ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi110DataForm">
+						<div class="form-group">
+							<label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi110Quarter" required>
+									<option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+								</select>
+								<select id="rhi110Year" required>
+									<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label># of unmonitored critical assets</label>
+							<input type="number" min="0" step="1" id="rhi110Numerator" required>
+						</div>
+						<div class="form-group">
+							<label>Total # of critical asset components</label>
+							<input type="number" min="1" step="1" id="rhi110Denominator" required>
+						</div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi110DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi110UpdateForm">
+						<div class="form-group">
+							<label>Existing Period</label>
+							<input type="text" id="rhi110UpdatePeriod" placeholder="Qx-YYYY" required>
+						</div>
+						<div class="form-group">
+							<label>New Unmonitored (optional)</label>
+							<input type="number" min="0" step="1" id="rhi110UpdateNumerator">
+						</div>
+						<div class="form-group">
+							<label>New Total (optional)</label>
+							<input type="number" min="1" step="1" id="rhi110UpdateDenominator">
+						</div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi110UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi110DeleteForm">
+						<div class="form-group">
+							<label>Period</label>
+							<select id="rhi110DeletePeriod" required><option value="">Select...</option></select>
+						</div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi110DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI111 Detail -->
+	<div class="container dashboard" id="rhi111Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI111: # of external cyber incidents triggering critical/extreme impact</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi111CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi111YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi111FilterStart"><option value="">Start...</option></select>
+							<select id="rhi111FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi111TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi111ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi111DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi111Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi111Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Count</label><input type="number" min="0" step="1" id="rhi111Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi111DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi111UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi111UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Count</label><input type="number" min="0" step="1" id="rhi111UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi111UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi111DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi111DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi111DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI112 Detail -->
+	<div class="container dashboard" id="rhi112Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI112: # of third-party cyber incidents triggering critical/extreme impact</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi112CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi112YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi112FilterStart"><option value="">Start...</option></select>
+							<select id="rhi112FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi112TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi112ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi112DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi112Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi112Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Count</label><input type="number" min="0" step="1" id="rhi112Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi112DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi112UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi112UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Count</label><input type="number" min="0" step="1" id="rhi112UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi112UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi112DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi112DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi112DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI113 Detail -->
+	<div class="container dashboard" id="rhi113Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI113: # of cyber incidents caused by physical security issues</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi113CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi113YearTotal">-</div><div class="kpi-label">Yearly Total</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Month):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi113FilterStart"><option value="">Start...</option></select>
+							<select id="rhi113FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi113TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi113ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi113DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi113Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi113Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label>Count</label><input type="number" min="0" step="1" id="rhi113Value" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi113DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi113UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi113UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New Count</label><input type="number" min="0" step="1" id="rhi113UpdateValue" required></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi113UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi113DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi113DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi113DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI121 (ratio quarterly) -->
+	<div class="container dashboard" id="rhi121Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI121: % of cybersecurity non-compliance findings (quarterly)</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi121CurrentValue">-</div><div class="kpi-label">Latest Quarter</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi121YtdAvg">-</div><div class="kpi-label">YTD Average</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi121FilterStart"><option value="">Start...</option></select>
+							<select id="rhi121FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi121TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Quarter Comparison</h2><div class="chart-container"><canvas id="rhi121ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi121DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi121Quarter" required>
+									<option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+								</select>
+								<select id="rhi121Year" required>
+									<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group"><label>Total # of non-compliance issues (quarter)</label><input type="number" min="0" step="1" id="rhi121Numerator" required></div>
+						<div class="form-group"><label># of mandatory regulatory cybersecurity controls tested (quarter)</label><input type="number" min="1" step="1" id="rhi121Denominator" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi121DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi121UpdateForm">
+						<div class="form-group"><label>Existing Period</label><input type="text" id="rhi121UpdatePeriod" placeholder="Qx-YYYY" required></div>
+						<div class="form-group"><label>New Issues (optional)</label><input type="number" min="0" step="1" id="rhi121UpdateNumerator"></div>
+						<div class="form-group"><label>New Controls Tested (optional)</label><input type="number" min="1" step="1" id="rhi121UpdateDenominator"></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi121UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi121DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi121DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi121DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI122 (ratio monthly) -->
+	<div class="container dashboard" id="rhi122Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI122: % of data loss occurrences out of all cyber incidents</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div><div class="kpi-cards">
+					<div class="kpi-card"><div class="kpi-value" id="rhi122CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+					<div class="kpi-card"><div class="kpi-value" id="rhi122YearTotal">-</div><div class="kpi-label">Year Average</div></div>
+				</div>
+				<div class="app-selector" style="margin-top:12px;">
+					<label>Filter Period (Month):</label>
+					<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+						<select id="rhi122FilterStart"><option value="">Start...</option></select>
+						<select id="rhi122FilterEnd"><option value="">End...</option></select>
+					</div>
+				</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi122TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi122ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi122DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi122Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi122Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label># of incidents with identified data loss</label><input type="number" min="0" step="1" id="rhi122Numerator" required></div>
+						<div class="form-group"><label>Total # of incidents</label><input type="number" min="1" step="1" id="rhi122Denominator" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi122DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi122UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi122UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New data loss incidents</label><input type="number" min="0" step="1" id="rhi122UpdateNumerator"></div>
+						<div class="form-group"><label>New total incidents</label><input type="number" min="1" step="1" id="rhi122UpdateDenominator"></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi122UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi122DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi122DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi122DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI123 (ratio monthly) -->
+	<div class="container dashboard" id="rhi123Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI123: % of real cyber threat alerts out of all relevant alerts</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div><div class="kpi-cards">
+					<div class="kpi-card"><div class="kpi-value" id="rhi123CurrentValue">-</div><div class="kpi-label">Latest Month</div></div>
+					<div class="kpi-card"><div class="kpi-value" id="rhi123YearTotal">-</div><div class="kpi-label">Year Average</div></div>
+				</div>
+				<div class="app-selector" style="margin-top:12px;">
+					<label>Filter Period (Month):</label>
+					<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+						<select id="rhi123FilterStart"><option value="">Start...</option></select>
+						<select id="rhi123FilterEnd"><option value="">End...</option></select>
+					</div>
+				</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi123TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Month Comparison</h2><div class="chart-container"><canvas id="rhi123ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi123DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi123Month" required>
+									<option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+								</select>
+								<select id="rhi123Year" required><option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+							</div>
+						</div>
+						<div class="form-group"><label># of threat alerts correlated to a real cyber threat</label><input type="number" min="0" step="1" id="rhi123Numerator" required></div>
+						<div class="form-group"><label># of all detected cyber threat alerts</label><input type="number" min="1" step="1" id="rhi123Denominator" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi123DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi123UpdateForm">
+						<div class="form-group"><label>Period</label><input type="text" id="rhi123UpdatePeriod" placeholder="MM-YYYY" required></div>
+						<div class="form-group"><label>New correlated alerts</label><input type="number" min="0" step="1" id="rhi123UpdateNumerator"></div>
+						<div class="form-group"><label>New total alerts</label><input type="number" min="1" step="1" id="rhi123UpdateDenominator"></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi123UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi123DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi123DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi123DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- RHI158 (ratio quarterly) -->
+	<div class="container dashboard" id="rhi158Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card"><div class="header"><h1>RHI158: % of critical processes and systems without current BCPs</h1></div></div>
+		<div class="card">
+			<div class="grid">
+				<div>
+					<div class="kpi-cards">
+						<div class="kpi-card"><div class="kpi-value" id="rhi158CurrentValue">-</div><div class="kpi-label">Latest Quarter</div></div>
+						<div class="kpi-card"><div class="kpi-value" id="rhi158YtdAvg">-</div><div class="kpi-label">YTD Average</div></div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="rhi158FilterStart"><option value="">Start...</option></select>
+							<select id="rhi158FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="rhi158TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card"><h2 class="section-title">Quarter Comparison</h2><div class="chart-container"><canvas id="rhi158ComparisonChart"></canvas></div></div>
+		<div class="card">
+			<div class="forms-grid">
+				<div class="form-section">
+					<h3>Add Data Point</h3>
+					<form id="rhi158DataForm">
+						<div class="form-group"><label>Period</label>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+								<select id="rhi158Quarter" required>
+									<option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+								</select>
+								<select id="rhi158Year" required>
+									<option value="2024" selected>2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group"><label># of critical processes/systems without current BCPs</label><input type="number" min="0" step="1" id="rhi158Numerator" required></div>
+						<div class="form-group"><label>Total # of critical processes/systems</label><input type="number" min="1" step="1" id="rhi158Denominator" required></div>
+						<button type="submit" class="btn">Add Data Point</button>
+					</form>
+					<div id="rhi158DataMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Update Data Point</h3>
+					<form id="rhi158UpdateForm">
+						<div class="form-group"><label>Existing Period</label><input type="text" id="rhi158UpdatePeriod" placeholder="Qx-YYYY" required></div>
+						<div class="form-group"><label>New without BCPs</label><input type="number" min="0" step="1" id="rhi158UpdateNumerator"></div>
+						<div class="form-group"><label>New total critical processes/systems</label><input type="number" min="1" step="1" id="rhi158UpdateDenominator"></div>
+						<button type="submit" class="btn btn-success">Update</button>
+					</form>
+					<div id="rhi158UpdateMessage"></div>
+				</div>
+				<div class="form-section">
+					<h3>Delete Data Point</h3>
+					<form id="rhi158DeleteForm">
+						<div class="form-group"><label>Period</label><select id="rhi158DeletePeriod" required><option value="">Select...</option></select></div>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+					<div id="rhi158DeleteMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// Access control: detect read-only mode
+		window.canEdit = true;
+		async function __initAccessRHI(){
+			try{
+				const res = await fetch('/api/access');
+				const data = await res.json();
+				window.canEdit = !!(data && data.canEdit);
+			}catch(e){ window.canEdit = true; }
+			if(!window.canEdit){
+				// Disable known edit forms but keep them visible
+				['DataForm','UpdateForm','DeleteForm','SystemForm','DeleteSystemForm'].forEach(suffix=>{
+					Array.from(document.querySelectorAll(`form[id$="${suffix}"]`)).forEach(f=>{
+						f.querySelectorAll('input,select,button,textarea').forEach(el=>{ el.setAttribute('disabled','disabled'); });
+						f.style.opacity = '0.6';
+					});
+				});
+			}
+		}
+		document.addEventListener('DOMContentLoaded', __initAccessRHI);
+		const drawer = document.getElementById('sideDrawer');
+		const drawerBackdrop = document.getElementById('drawerBackdrop');
+		const drawerToggle = document.getElementById('drawerToggle');
+		function openDrawer(){ drawer.classList.add('open'); drawerBackdrop.classList.add('show'); document.querySelector('.sidebar-toggle').classList.add('shifted'); drawerToggle.textContent = '>'; }
+		function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.classList.remove('show'); document.querySelector('.sidebar-toggle').classList.remove('shifted'); drawerToggle.textContent = '<'; }
+		drawerToggle.addEventListener('click', ()=> drawer.classList.contains('open') ? closeDrawer() : openDrawer());
+		drawerBackdrop.addEventListener('click', closeDrawer);
+		const navKRI = document.getElementById('navKRI');
+        const navRHI = document.getElementById('navRHI');
+        const navMITRE = document.getElementById('navMITRE');
+        const navRISK = document.getElementById('navRISK');
+
+        function setActiveNav(btn){ [navKRI, navRHI, navMITRE, navRISK].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+
+        navKRI.addEventListener('click', ()=>{ setActiveNav(navKRI); window.location.href = '/kri'; });
+        navRHI.addEventListener('click', ()=>{ setActiveNav(navRHI); closeDrawer(); });
+        navMITRE.addEventListener('click', ()=>{ setActiveNav(navMITRE); closeDrawer(); window.location.href = '/mitre'; });
+        navRISK.addEventListener('click', ()=>{ setActiveNav(navRISK); closeDrawer(); window.location.href = '/risk-analysis'; });
+
+		// Utils
+		function showDataStatus(message, type='success'){ const el = document.getElementById('dataStatus'); el.textContent = message; el.className = `data-status ${type}`; el.style.display='block'; setTimeout(()=> el.style.display='none', 2500); }
+
+		const globalRhiFilter = { year: null, quarter: null };
+		function getMonthsForQuarter(q){
+			return q==='Q1' ? ['01','02','03'] : q==='Q2' ? ['04','05','06'] : q==='Q3' ? ['07','08','09'] : q==='Q4' ? ['10','11','12'] : [];
+		}
+		function isRhiPeriodInGlobalFilter(rhiId, period){
+			// Allow: no filter, year-only, or year+quarter
+			if(!globalRhiFilter.year && !globalRhiFilter.quarter) return true;
+			const quarterlyIds = ['rhi100','rhi101','rhi110','rhi121','rhi158'];
+			const yearlyIds = ['rhi105','rhi108'];
+			if(quarterlyIds.includes(rhiId)){
+				if(!period.includes('-') || !period.startsWith('Q')) return false;
+				const [qq, yy] = period.split('-');
+				if(globalRhiFilter.year && !globalRhiFilter.quarter){
+					return yy === String(globalRhiFilter.year);
+				}
+				return yy === String(globalRhiFilter.year) && qq === globalRhiFilter.quarter;
+			}else if(yearlyIds.includes(rhiId)){
+				// yearly always ignores quarter
+				return globalRhiFilter.year ? (period === String(globalRhiFilter.year)) : true;
+			}else{
+				// monthly
+				if(!period.includes('-') || period.startsWith('Q')) return false;
+				const [mm, yy] = period.split('-');
+				if(globalRhiFilter.year && !globalRhiFilter.quarter){
+					return yy === String(globalRhiFilter.year);
+				}
+				return yy === String(globalRhiFilter.year) && getMonthsForQuarter(globalRhiFilter.quarter).includes(mm);
+			}
+		}
+
+		function navigateTo(id){ window.location.hash = `#${id}Dashboard`; showDashboard(`${id}Dashboard`); }
+		function navigateBack(){ window.location.hash = '#mainPage'; showDashboard('main'); }
+		function showDashboard(id){
+			const pages = [
+				'mainPage',
+				'rhi96Dashboard','rhi97Dashboard','rhi98Dashboard',
+				'rhi100Dashboard','rhi101Dashboard',
+				'rhi102Dashboard','rhi103Dashboard','rhi104Dashboard',
+				'rhi105Dashboard','rhi106Dashboard','rhi107Dashboard',
+				'rhi108Dashboard','rhi109Dashboard','rhi110Dashboard',
+				'rhi111Dashboard','rhi112Dashboard','rhi113Dashboard',
+				'rhi121Dashboard','rhi122Dashboard','rhi123Dashboard','rhi158Dashboard'
+			];
+			pages.forEach(p=>{ const el = document.getElementById(p); if(el) el.style.display = (p === id || (id==='main' && p==='mainPage')) ? 'block' : 'none'; });
+			const isMain = (id==='main'||id==='mainPage'||!id); const toggleEl = document.querySelector('.sidebar-toggle'); if (toggleEl) toggleEl.style.display = isMain ? 'block':'none'; if(!isMain) closeDrawer();
+
+			// Show global Filter/Export only on main dashboard
+			const gc = document.querySelector('.global-controls'); if(gc) gc.style.display = isMain ? 'flex' : 'none';
+			const fp = document.getElementById('rhiFilterPanel'); if(fp){ fp.classList.remove('open'); fp.style.removeProperty('display'); }
+			const ep = document.getElementById('rhiExportPanel'); if(ep){ ep.classList.remove('open'); ep.style.removeProperty('display'); }
+		}
+
+		// Data
+		let rhiData = {};
+		async function loadRHIData(){ const res = await fetch('/api/rhi-data'); if(!res.ok) throw new Error('Failed to load RHI'); rhiData = await res.json(); return rhiData; }
+
+		// Helpers
+		function comparePeriods(a,b){
+			if(a.includes('-') && a[0] !== 'Q'){
+				const [am, ay] = a.split('-'); const [bm, by] = b.split('-');
+				if(ay !== by) return parseInt(ay)-parseInt(by);
+				return parseInt(am)-parseInt(bm);
+			}
+			if(a[0] === 'Q'){
+				const [aq, ay] = a.split('-'); const [bq, by] = b.split('-');
+				if(ay !== by) return parseInt(ay)-parseInt(by);
+				return parseInt(aq.replace('Q','')) - parseInt(bq.replace('Q',''));
+			}
+			return parseInt(a) - parseInt(b);
+		}
+		function isQuarterly(id){ return ['rhi100','rhi101','rhi110','rhi121','rhi158'].includes(id); }
+		function isYearly(id){ return ['rhi105','rhi108'].includes(id); }
+		function isMonthly(id){ return !isQuarterly(id) && !isYearly(id); }
+
+		function populateGlobalYearOptions(){
+			const years = new Set();
+			Object.values(rhiData || {}).forEach(entry=>{
+				(entry?.data||[]).forEach(d=>{
+					const p = String(d.period||'');
+					if(p.includes('-')) years.add(p.split('-')[1]);
+					else if(p.length===4) years.add(p);
+				});
+			});
+			const select = document.getElementById('rhiYearSelect');
+			select.innerHTML = '<option value="">Select year...</option>';
+			Array.from(years).sort().forEach(y=>{
+				const opt = document.createElement('option');
+				opt.value = y; opt.textContent = y;
+				select.appendChild(opt);
+			});
+		}
+
+		class RHIMetric {
+			constructor(rhiId, options){
+				this.rhiId = rhiId;
+				this.options = Object.assign({ valueMode: 'number', unitLabel: 'Value', decimals: 0 }, options || {});
+				this.data = [];
+				this.filtered = [];
+				this.filterStart = '';
+				this.filterEnd = '';
+				this.charts = { trend: null, comparison: null, comparisonMain: null };
+				this.initCharts();
+				this.bindForms();
+				this.bindFilters();
+			}
+			isRhi107(){ return this.rhiId === 'rhi107'; }
+			secondsFromHMS(d){ return (Number(d.hours)||0)*3600 + (Number(d.minutes)||0)*60 + (Number(d.seconds)||0); }
+			prettyHMS(total){
+				const totalInt = Math.max(0, Math.floor(Number(total)||0));
+				const hh = String(Math.floor(totalInt/3600)).padStart(2,'0');
+				const mm = String(Math.floor((totalInt%3600)/60)).padStart(2,'0');
+				const ss = String(totalInt%60).padStart(2,'0');
+				return `${hh}:${mm}:${ss}`;
+			}
+			mount(){ this.data = (rhiData[this.rhiId]?.data || []).slice(); this.refresh(); }
+			bindForms(){ const id=this.rhiId;
+				const addForm = document.getElementById(`${id}DataForm`); if(addForm) addForm.addEventListener('submit', (e)=>{ e.preventDefault(); this.addPoint(); });
+				const updForm = document.getElementById(`${id}UpdateForm`); if(updForm) addForm && updForm.addEventListener('submit', (e)=>{ e.preventDefault(); this.updatePoint(); });
+				const delForm = document.getElementById(`${id}DeleteForm`); if(delForm) delForm.addEventListener('submit', (e)=>{ e.preventDefault(); this.deletePoint(); });
+			}
+			bindFilters(){
+				const s = document.getElementById(`${this.rhiId}FilterStart`);
+				const e = document.getElementById(`${this.rhiId}FilterEnd`);
+				if(s) s.addEventListener('change', ()=>{ this.filterStart = s.value; this.refresh(); });
+				if(e) e.addEventListener('change', ()=>{ this.filterEnd = e.value; this.refresh(); });
+			}
+			initCharts(){ const id=this.rhiId; const self=this;
+				const tEl = document.getElementById(`${id}TrendChart`);
+				if (tEl) {
+					const t = tEl.getContext('2d');
+					this.charts.trend = new Chart(t,{
+						type:'line',
+						data:{labels:[], datasets:[{label: self.isRhi107() ? 'Hours' : self.options.unitLabel, data:[], borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.1)', borderWidth:3, fill:true, tension:0.4, pointRadius:6}]},
+						options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{ tooltip:{ callbacks:{ label:function(ctx){ const v=ctx.parsed.y; const base = `${ctx.label}: `; return self.isRhi107()? base + self.prettyHMS(v*3600) : base + v; } } } } }
+					});
+				}
+				const cEl = document.getElementById(`${id}ComparisonChart`);
+				if (cEl) {
+					const c = cEl.getContext('2d');
+					this.charts.comparison = new Chart(c,{
+						type:'bar',
+						data:{labels:[], datasets:[{label: self.isRhi107() ? 'Hours' : self.options.unitLabel, data:[], backgroundColor:'#A3BFFA', borderColor:'#667eea', borderWidth:1}]},
+						options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ const v=ctx.parsed.y; const base = `${ctx.label}: `; return self.isRhi107()? base + self.prettyHMS(v*3600) : base + v; } } } } }
+					});
+				}
+				const cmEl = document.getElementById(`${id}ComparisonChartMain`);
+				if (cmEl) {
+					const cm = cmEl.getContext('2d');
+					this.charts.comparisonMain = new Chart(cm,{
+						type:'bar',
+						data:{labels:[], datasets:[{label: self.isRhi107() ? 'Hours' : self.options.unitLabel, data:[], backgroundColor:'#A3BFFA', borderColor:'#667eea', borderWidth:1}]},
+						options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ const v=ctx.parsed.y; const base = `${ctx.label}: `; return self.isRhi107()? base + self.prettyHMS(v*3600) : base + v; } } } } }
+					});
+				}
+			}
+			updateDeleteList(){ const sel = document.getElementById(`${this.rhiId}DeletePeriod`); if(!sel) return; sel.innerHTML = '<option value="">Select...</option>'; this.data.forEach(d=>{ const o=document.createElement('option'); o.value=d.period; o.textContent=this.formatPeriod(d.period); sel.appendChild(o); }); }
+			formatPeriod(p){
+				if(isQuarterly(this.rhiId)) return p.replace('-', ' ');
+				if(isYearly(this.rhiId)) return p;
+				const [m,y]=p.split('-'); const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${names[parseInt(m)-1]} ${y}`;
+			}
+			refresh(){ this.updateDeleteList(); this.populateFilterOptions(); this.applyFilter(); this.updateUI(); }
+			populateFilterOptions(){
+				const s = document.getElementById(`${this.rhiId}FilterStart`);
+				const e = document.getElementById(`${this.rhiId}FilterEnd`);
+				if(!s || !e) return;
+				const periods = this.data.map(d=>d.period);
+				s.innerHTML = '<option value="">Start...</option>';
+				e.innerHTML = '<option value="">End...</option>';
+				periods.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=this.formatPeriod(p); s.appendChild(o.cloneNode(true)); e.appendChild(o); });
+				if(this.filterStart) s.value = this.filterStart;
+				if(this.filterEnd) e.value = this.filterEnd;
+			}
+			applyFilter(){
+				let base;
+				if(!this.filterStart && !this.filterEnd){ base = this.data.slice(); }
+				else {
+					base = this.data.filter(d=>{
+						const afterStart = !this.filterStart || comparePeriods(d.period, this.filterStart) >= 0;
+						const beforeEnd = !this.filterEnd || comparePeriods(d.period, this.filterEnd) <= 0;
+						return afterStart && beforeEnd;
+					});
+				}
+				// apply global Year/Quarter filter by rhiId type
+				this.filtered = base.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+			}
+			updateUI(){
+				const array = this.filtered.length ? this.filtered : this.data.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+				const latest = array.length>0 ? array[array.length-1] : null;
+				const currentEl = document.getElementById(`${this.rhiId}CurrentValue`);
+				if(currentEl){
+					if(this.isRhi107()){
+						currentEl.textContent = latest ? this.prettyHMS(this.secondsFromHMS(latest)) : '-';
+					}else{
+						currentEl.textContent = latest ? (this.options.decimals ? Number(latest.value).toFixed(this.options.decimals) : latest.value) : '-';
+					}
+				}
+				const year = array.length>0 ? (array[array.length-1].period.split('-')[1] || array[array.length-1].period) : null;
+				const totalEl = document.getElementById(`${this.rhiId}YearTotal`) || document.getElementById(`${this.rhiId}YtdAvg`);
+				if(totalEl){
+					if(!year){ totalEl.textContent = '-'; }
+					else if(this.isRhi107()){
+						const sum = array.filter(d=> (d.period.endsWith && d.period.endsWith(year)) || d.period===year).reduce((s,d)=> s + this.secondsFromHMS(d), 0);
+						totalEl.textContent = this.prettyHMS(sum);
+					}else if(['rhi100','rhi101','rhi110','rhi121','rhi158','rhi105','rhi108','rhi109','rhi122','rhi123'].includes(this.rhiId)){
+						const rows = array.filter(d=> (d.period.endsWith && d.period.endsWith(year)) || d.period===year);
+						const avg = rows.reduce((s,d)=> s + Number(d.value||0), 0) / (rows.length || 1);
+						totalEl.textContent = `${avg.toFixed(1)}%`;
+					}else{
+						const sum = array.filter(d=> (d.period.endsWith && d.period.endsWith(year)) || d.period===year).reduce((s,d)=> s + Number(d.value||0), 0);
+						totalEl.textContent = this.options.decimals ? Number(sum).toFixed(this.options.decimals) : sum;
+					}
+				}
+				this.updateCharts();
+			}
+			updateCharts(){
+				const array = this.filtered.length ? this.filtered : this.data.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+				const labels = array.map(d=> this.formatPeriod(d.period));
+				const values = this.isRhi107() ? array.map(d=> (this.secondsFromHMS(d)/3600.0)) : array.map(d=> d.value);
+				if (this.charts.trend){ this.charts.trend.data.labels = labels; this.charts.trend.data.datasets[0].data = values; this.charts.trend.update(); }
+				if (this.charts.comparison){ this.charts.comparison.data.labels = labels; this.charts.comparison.data.datasets[0].data = values; this.charts.comparison.update(); }
+				if (this.charts.comparisonMain){ this.charts.comparisonMain.data.labels = labels; this.charts.comparisonMain.data.datasets[0].data = values; this.charts.comparisonMain.update(); }
+			}
+			async addPoint(){
+				let period=''; const msg = document.getElementById(`${this.rhiId}DataMessage`); let payload = { rhiId: this.rhiId };
+				if(isMonthly(this.rhiId)){ const m=document.getElementById(`${this.rhiId}Month`).value; const y=document.getElementById(`${this.rhiId}Year`).value; period=`${m}-${y}`; }
+				if(isQuarterly(this.rhiId)){ const q=document.getElementById(`${this.rhiId}Quarter`).value; const y=document.getElementById(`${this.rhiId}Year`).value; period=`${q}-${y}`; }
+				if(isYearly(this.rhiId)){ const y=document.getElementById(`${this.rhiId}Year`).value; period=`${y}`; }
+				payload.period = period;
+				if(this.isRhi107()){
+					const h = parseInt(document.getElementById(`${this.rhiId}Hours`).value || '0',10);
+					const mi = parseInt(document.getElementById(`${this.rhiId}Minutes`).value || '0',10);
+					const s = parseInt(document.getElementById(`${this.rhiId}Seconds`).value || '0',10);
+					if(h<0||mi<0||s<0){ msg.textContent='Invalid duration'; return; }
+					payload.hours = h; payload.minutes = mi; payload.seconds = s;
+				}else if(['rhi100','rhi101','rhi105','rhi108','rhi109','rhi110','rhi121','rhi122','rhi123','rhi158'].includes(this.rhiId)){
+					const n = parseInt(document.getElementById(`${this.rhiId}Numerator`).value||'0',10);
+					const d = parseInt(document.getElementById(`${this.rhiId}Denominator`).value||'0',10);
+					if(d<=0 || n<0){ msg.textContent='Invalid values'; showDataStatus('Invalid values','error'); return; }
+					payload.numerator = n; payload.denominator = d;
+				}else{
+					const v = parseFloat(document.getElementById(`${this.rhiId}Value`).value);
+					if(isNaN(v)||v<0){ msg.textContent='Invalid value'; return; }
+					payload.value = v;
+				}
+				const res = await fetch('/api/rhi/add-data-point', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+				if(!res.ok){ msg.textContent='Save failed'; showDataStatus('Save failed','error'); return; }
+				const data = await res.json(); rhiData[this.rhiId] = data.rhi; this.data = (data.rhi.data||[]).slice(); this.refresh(); msg.textContent='Saved'; showDataStatus('Saved','success');
+			}
+			async updatePoint(){
+				const period=document.getElementById(`${this.rhiId}UpdatePeriod`).value.trim();
+				const msg=document.getElementById(`${this.rhiId}UpdateMessage`);
+				let payload = { rhiId: this.rhiId, period };
+				if(this.isRhi107()){
+					const h = parseInt(document.getElementById(`${this.rhiId}UpdateHours`).value || '0',10);
+					const mi = parseInt(document.getElementById(`${this.rhiId}UpdateMinutes`).value || '0',10);
+					const s = parseInt(document.getElementById(`${this.rhiId}UpdateSeconds`).value || '0',10);
+					if(h<0||mi<0||s<0){ msg.textContent='Invalid duration'; return; }
+					payload.hours = h; payload.minutes = mi; payload.seconds = s;
+				}else if(['rhi100','rhi101','rhi105','rhi108','rhi109','rhi110','rhi121','rhi122','rhi123','rhi158'].includes(this.rhiId)){
+					const numRaw=document.getElementById(`${this.rhiId}UpdateNumerator`).value;
+					const denRaw=document.getElementById(`${this.rhiId}UpdateDenominator`).value;
+					if(numRaw!=='') payload.numerator = parseInt(numRaw,10);
+					if(denRaw!=='') payload.denominator = parseInt(denRaw,10);
+					if(payload.denominator !== undefined && payload.denominator <= 0){ msg.textContent='Invalid denominator'; showDataStatus('Invalid','error'); return; }
+				}else{
+					const v = parseFloat(document.getElementById(`${this.rhiId}UpdateValue`).value);
+					if(isNaN(v)||v<0){ msg.textContent='Invalid value'; return; }
+					payload.value = v;
+				}
+				const res = await fetch('/api/rhi/update-data-point', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+				if(!res.ok){ msg.textContent='Update failed'; showDataStatus('Update failed','error'); return; }
+				const data = await res.json(); rhiData[this.rhiId] = data.rhi; this.data = (data.rhi.data||[]).slice(); this.refresh(); msg.textContent='Updated'; showDataStatus('Updated','success');
+			}
+			async deletePoint(){ const period=document.getElementById(`${this.rhiId}DeletePeriod`).value; const msg=document.getElementById(`${this.rhiId}DeleteMessage`);
+				const res = await fetch('/api/rhi/delete-data-point', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rhiId: this.rhiId, period }) });
+				if(!res.ok){ msg.textContent='Delete failed'; showDataStatus('Delete failed','error'); return; }
+				const data = await res.json(); rhiData[this.rhiId] = data.rhi; this.data = (data.rhi.data||[]).slice(); this.refresh(); msg.textContent='Deleted'; showDataStatus('Deleted','success'); }
+		}
+
+		class RHIRatioQuarterly extends RHIMetric {
+			constructor(rhiId){
+				super(rhiId);
+			}
+			formatPeriod(p){ return p.replace('-', ' '); }
+			updateUI(){
+				const array = this.filtered.length ? this.filtered : this.data.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+				const latest = array.length>0 ? array[array.length-1] : null;
+				const currentEl = document.getElementById(`${this.rhiId}CurrentValue`);
+				if(currentEl){ currentEl.textContent = latest ? `${Number(latest.value||0).toFixed(1)}%` : '-'; }
+				const year = array.length>0 ? array[array.length-1].period.split('-')[1] : null;
+				const ytdEl = document.getElementById(`${this.rhiId}YtdAvg`);
+				if(ytdEl){
+					if(!year){ ytdEl.textContent='-'; }
+					else{
+						const rows = array.filter(d=> d.period.endsWith(year));
+						const avg = rows.reduce((s,d)=> s + Number(d.value||0), 0) / (rows.length || 1);
+						ytdEl.textContent = `${avg.toFixed(1)}%`;
+					}
+				}
+				this.updateCharts();
+			}
+		}
+
+		class RHIRatioYearly extends RHIMetric {
+			constructor(rhiId){
+				super(rhiId);
+			}
+			formatPeriod(p){ return p; }
+			updateUI(){
+				const array = this.filtered.length ? this.filtered : this.data.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+				const latest = array.length>0 ? array[array.length-1] : null;
+				const cur = document.getElementById(`${this.rhiId}CurrentValue`); if(cur) cur.textContent = latest ? `${Number(latest.value||0).toFixed(1)}%` : '-';
+				const yearEl = document.getElementById(`${this.rhiId}YtdAvg`);
+				if(yearEl){
+					if(!latest){ yearEl.textContent='-'; }
+					else{
+						const year = latest.period;
+						const rows = array.filter(d=> d.period === year);
+						const avg = rows.reduce((s,d)=> s + Number(d.value||0), 0) / (rows.length || 1);
+						yearEl.textContent = `${avg.toFixed(1)}%`;
+					}
+				}
+				this.updateCharts();
+			}
+		}
+
+		class RHIRatioMonthly extends RHIMetric {
+			constructor(rhiId){
+				super(rhiId);
+			}
+			formatPeriod(p){ const [m,y]=p.split('-'); const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${names[parseInt(m)-1]} ${y}`; }
+			updateUI(){
+				const array = this.filtered.length ? this.filtered : this.data.filter(d => isRhiPeriodInGlobalFilter(this.rhiId, d.period));
+				const latest = array.length>0 ? array[array.length-1] : null;
+				const cur = document.getElementById(`${this.rhiId}CurrentValue`); if(cur) cur.textContent = latest ? `${Number(latest.value||0).toFixed(1)}%` : '-';
+				const year = latest ? latest.period.split('-')[1] : null;
+				const yearAvgEl = document.getElementById(`${this.rhiId}YearTotal`);
+				if(yearAvgEl){
+					if(!year){ yearAvgEl.textContent='-'; }
+					else{
+						const rows = array.filter(d=> d.period.endsWith(year));
+						const avg = rows.reduce((s,d)=> s + Number(d.value||0), 0) / (rows.length || 1);
+						yearAvgEl.textContent = `${avg.toFixed(1)}%`;
+					}
+				}
+				this.updateCharts();
+			}
+		}
+
+		const rhiDashboards = {
+			// Ratio metrics
+			rhi100: new RHIRatioQuarterly('rhi100'),
+			rhi101: new RHIRatioQuarterly('rhi101'),
+			rhi105: new RHIRatioYearly('rhi105'),
+			rhi108: new RHIRatioYearly('rhi108'),
+			rhi109: new RHIRatioMonthly('rhi109'),
+			rhi110: new RHIRatioQuarterly('rhi110'),
+			rhi121: new RHIRatioQuarterly('rhi121'),
+			rhi122: new RHIRatioMonthly('rhi122'),
+			rhi123: new RHIRatioMonthly('rhi123'),
+			rhi158: new RHIRatioQuarterly('rhi158'),
+			rhi96: new RHIMetric('rhi96', { valueMode:'number', unitLabel:'Value' }),
+			rhi97: new RHIMetric('rhi97', { valueMode:'number', unitLabel:'Value' }),
+			rhi98: new RHIMetric('rhi98', { valueMode:'number', unitLabel:'Value' }),
+			rhi102: new RHIMetric('rhi102', { valueMode:'number', unitLabel:'Hours' }),
+			rhi103: new RHIMetric('rhi103', { valueMode:'number', unitLabel:'Hours' }),
+			rhi104: new RHIMetric('rhi104', { valueMode:'number', unitLabel:'Hours' }),
+			rhi106: new RHIMetric('rhi106', { valueMode:'number', unitLabel:'Hours', decimals:2 }),
+			rhi107: new RHIMetric('rhi107', { valueMode:'hours', unitLabel:'Hours' }),
+			rhi111: new RHIMetric('rhi111', { valueMode:'number', unitLabel:'Count' }),
+			rhi112: new RHIMetric('rhi112', { valueMode:'number', unitLabel:'Count' }),
+			rhi113: new RHIMetric('rhi113', { valueMode:'number', unitLabel:'Count' }),
+		};
+
+		document.addEventListener('DOMContentLoaded', async () => {
+			try { await loadRHIData(); Object.values(rhiDashboards).forEach(d=> d.mount()); } catch(e){ showDataStatus('Failed to load RHI','error'); }
+
+			// Global controls
+			const filterBtn = document.getElementById('rhiFilterBtn');
+			const exportBtn = document.getElementById('rhiExportBtn');
+			const filterPanel = document.getElementById('rhiFilterPanel');
+			const exportPanel = document.getElementById('rhiExportPanel');
+			filterBtn.addEventListener('click', ()=>{
+				exportPanel.classList.remove('open');
+				filterPanel.classList.toggle('open');
+			});
+			exportBtn.addEventListener('click', ()=>{
+				filterPanel.classList.remove('open');
+				exportPanel.classList.toggle('open');
+			});
+
+			document.getElementById('rhiApplyFilter').addEventListener('click', ()=>{
+				const y = document.getElementById('rhiYearSelect').value;
+				const q = document.getElementById('rhiQuarterSelect').value;
+				if(!y && !q){ showDataStatus('Select at least a year', 'error'); return; }
+				globalRhiFilter.year = y || null; globalRhiFilter.quarter = q || null;
+				Object.values(rhiDashboards).forEach(d=> d.refresh());
+				if(y && q) showDataStatus(`Applied filter ${q} ${y}`,'success');
+				else if(y) showDataStatus(`Applied filter ${y}`,'success');
+				else showDataStatus('Applied filter','success');
+			});
+			document.getElementById('rhiClearFilter').addEventListener('click', ()=>{
+				globalRhiFilter.year = null; globalRhiFilter.quarter = null;
+				Object.values(rhiDashboards).forEach(d=> d.refresh());
+				document.getElementById('rhiYearSelect').value = '';
+				document.getElementById('rhiQuarterSelect').value = '';
+				showDataStatus('Filter cleared','success');
+			});
+
+			function downloadBlob(blob, filename){
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+				a.remove(); window.URL.revokeObjectURL(url);
+			}
+
+			document.getElementById('rhiExportDownload').addEventListener('click', async ()=>{
+				const y = document.getElementById('rhiYearSelect').value || '';
+				const q = document.getElementById('rhiQuarterSelect').value || '';
+				const fmt = document.getElementById('rhiExportFormat').value || 'html';
+				const params = new URLSearchParams();
+				if (y) params.append('year', y);
+				if (q) params.append('quarter', q);
+				params.append('format', fmt);
+				try{
+					const res = await fetch(`/api/rhi/report?${params.toString()}`);
+					if(!res.ok) throw new Error(await res.text());
+					const blob = await res.blob();
+					const filename = res.headers.get('Content-Disposition')?.split('filename=')[1]?.replaceAll('"','') || `rhi_report_${q||'ALL'}_${y||'ALL'}.${fmt==='html'?'html':(fmt==='pdf'?'pdf':'docx')}`;
+					downloadBlob(blob, filename);
+					showDataStatus('Report downloaded','success');
+				}catch(e){
+					showDataStatus('Export failed','error');
+				}
+			});
+
+			// populate years
+			populateGlobalYearOptions();
+
+			window.addEventListener('hashchange', ()=>{ const hash=window.location.hash.replace('#',''); showDashboard(hash||'mainPage'); });
+			showDashboard(window.location.hash.replace('#','')||'mainPage');
+		});
+	</script>
+</body>
+
+</html>

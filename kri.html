@@ -1,0 +1,2904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Key Risk Indicator Metrics</title>
+	<script src="/static/js/chart.min.js"></script>
+	<style>
+		:root {
+			--primary: #667eea;
+			--secondary: #764ba2;
+			--success: #4caf50;
+			--warning: #ff9800;
+			--danger: #f44336;
+			--light-bg: #f8f9fa;
+			--card-bg: #ffffff;
+			--border: #e1e5fe;
+			--text: #333;
+			--text-light: #666;
+			--shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			--gradient-bg: linear-gradient(135deg, #667eea, #764ba2);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			margin: 0;
+			padding: 0;
+			background: var(--light-bg);
+			color: var(--text);
+			background-color: rgb(195, 207, 219);
+			min-height: 100vh;
+			transition: all 0.3s ease;
+		}
+
+		.container {
+			max-width: 100%;
+			margin: 0 auto;
+			position: relative;
+			width: 100%;
+			padding: 20px;
+		}
+
+		.dashboard-grid {
+			display: grid;
+			grid-template-columns: repeat(6, minmax(0, 1fr));
+			gap: 20px;
+			justify-content: center;
+		}
+
+		.header {
+			grid-column: 1 / -1;
+			text-align: center;
+			padding: 20px;
+			background: var(--gradient-bg);
+			color: white;
+			border-radius: 12px;
+			margin-bottom: 20px;
+		}
+
+		.dashboard-card {
+			background: var(--card-bg);
+			border-radius: 12px;
+			box-shadow: var(--shadow);
+			padding: 20px;
+			text-align: center;
+			transition: transform 0.3s ease;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			min-height: 350px;
+			min-width: 0;
+		}
+
+		.dashboard-card:hover {
+			transform: translateY(-5px);
+		}
+
+		.dashboard-card h2 {
+			margin: 0 0 10px 0;
+			font-size: 22px;
+			color: var(--primary);
+		}
+
+		.dashboard-card p {
+			margin: 0 0 10px 0;
+			font-size: 14px;
+			color: var(--text-light);
+			line-height: 1.4;
+		}
+
+		.dashboard-card .threshold {
+			margin-bottom: 10px;
+			font-size: 13px;
+			color: var(--text);
+			font-weight: 600;
+		}
+
+		.chart-container {
+			position: relative;
+			height: 180px;
+			margin-top: 10px;
+			flex-grow: 1;
+			min-width: 0;
+		}
+
+		.chart-container canvas {
+			width: 100% !important;
+			height: 100% !important;
+			display: block;
+		}
+
+		.btn-view {
+			padding: 10px 20px;
+			background: var(--gradient-bg);
+			color: white;
+			border: none;
+			border-radius: 6px;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: transform 0.2s;
+			margin-top: auto;
+		}
+
+		.btn-view:hover {
+			transform: translateY(-2px);
+		}
+
+		.dashboard {
+			display: none;
+			width: 100%;
+			min-height: 100vh;
+			padding: 20px;
+			background: var(--light-bg);
+		}
+
+		.dashboard.active {
+			display: block;
+		}
+
+		.back-button {
+			position: absolute;
+			top: 20px;
+			left: 70px;
+			padding: 10px 20px;
+			background: white;
+			color: var(--primary);
+			border: none;
+			border-radius: 6px;
+			font-size: 16px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			box-shadow: var(--shadow);
+			display: flex;
+			align-items: center;
+		}
+
+		.back-button::before {
+			content: '←';
+			margin-right: 8px;
+		}
+
+		.back-button:hover {
+			background: var(--primary);
+			color: white;
+			transform: translateY(-2px);
+		}
+
+		.loading {
+			text-align: center;
+			padding: 40px;
+			color: var(--text-light);
+		}
+
+		.error {
+			text-align: center;
+			padding: 40px;
+			color: var(--danger);
+			background: rgba(244, 67, 54, 0.1);
+			border-radius: 8px;
+			margin: 20px 0;
+		}
+
+		.date-time {
+			font-size: 14px;
+			color: #fff;
+			margin-top: 5px;
+		}
+
+		.data-status {
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			padding: 10px 15px;
+			border-radius: 6px;
+			font-size: 14px;
+			font-weight: 600;
+			z-index: 1000;
+			opacity: 0.9;
+		}
+
+		.data-status.success {
+			background: var(--success);
+			color: white;
+		}
+
+		.data-status.error {
+			background: var(--danger);
+			color: white;
+		}
+
+		@media (max-width: 1200px) {
+			.dashboard-grid {
+				grid-template-columns: repeat(6, minmax(0, 1fr));
+			}
+		}
+
+		@media (max-width: 768px) {
+			.dashboard-grid {
+				grid-template-columns: repeat(6, minmax(0, 1fr));
+			}
+		}
+
+		.dashboard .card {
+			background: var(--card-bg);
+			border-radius: 12px;
+			box-shadow: var(--shadow);
+			margin-bottom: 24px;
+			overflow: hidden;
+		}
+
+		.dashboard .card .header {
+			background: var(--gradient-bg);
+			color: white;
+			padding: 32px;
+			text-align: center;
+		}
+
+		.dashboard .card .header h1 {
+			margin: 0 0 8px 0;
+			font-size: 28px;
+			font-weight: 700;
+		}
+
+		.dashboard .card .header p {
+			margin: 0;
+			opacity: 0.9;
+			font-size: 16px;
+		}
+
+		.dashboard .grid {
+			display: grid;
+			grid-template-columns: 1fr 2fr;
+			gap: 24px;
+			padding: 24px;
+		}
+
+		.dashboard .sidebar {
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+		}
+
+		.dashboard .app-selector {
+			padding: 20px;
+			background: var(--light-bg);
+			border-radius: 8px;
+		}
+
+		.dashboard .app-selector label {
+			display: block;
+			margin-bottom: 8px;
+			font-weight: 600;
+			font-size: 14px;
+		}
+
+		.dashboard .kpi-cards {
+			display: grid;
+			gap: 16px;
+		}
+
+		.dashboard .kpi-card {
+			padding: 20px;
+			background: linear-gradient(135deg, #f8f9ff, #e8eaff);
+			border: 2px solid var(--border);
+			border-radius: 8px;
+			text-align: center;
+		}
+
+		.dashboard .kpi-card.alert {
+			background: linear-gradient(135deg, #ffebee, #ffcdd2);
+			border-color: var(--danger);
+		}
+
+		.dashboard .kpi-value {
+			font-size: 32px;
+			font-weight: 800;
+			margin-bottom: 8px;
+			color: var(--primary);
+		}
+
+		.dashboard .kpi-value.danger {
+			color: var(--danger);
+		}
+
+		.dashboard .kpi-label {
+			font-size: 14px;
+			color: var(--text-light);
+			margin-bottom: 12px;
+		}
+
+		.dashboard .trend {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			font-size: 14px;
+			font-weight: 600;
+			padding: 4px 8px;
+			border-radius: 4px;
+		}
+
+		.dashboard .trend-up {
+			background: rgba(244, 67, 54, 0.1);
+			color: var(--danger);
+		}
+
+		.dashboard .trend-down {
+			background: rgba(76, 175, 80, 0.1);
+			color: var(--success);
+		}
+
+		.dashboard .trend-neutral {
+			background: rgba(0, 0, 0, 0.06);
+			color: var(--text);
+		}
+
+		.dashboard .chart-container {
+			position: relative;
+			height: auto;
+			min-height: 380px;
+			padding: 20px;
+		}
+
+		#kri8Dashboard .chart-container,
+		#kri10Dashboard .chart-container,
+		#kri12Dashboard .chart-container,
+		#kri13Dashboard .chart-container,
+		#kri19Dashboard .chart-container {
+			min-height: 460px;
+		}
+
+		.dashboard .section-title {
+			margin: 0 0 24px 0;
+			padding: 0 24px;
+			font-size: 20px;
+			font-weight: 700;
+		}
+
+		@media (max-width: 768px) {
+			.dashboard .grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.dashboard .forms-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr 1fr;
+			gap: 24px;
+			padding: 24px;
+		}
+
+		.dashboard .form-section {
+			padding: 24px;
+			background: var(--light-bg);
+			border-radius: 8px;
+		}
+
+		.dashboard .form-section h3 {
+			margin: 0 0 20px 0;
+			font-size: 18px;
+			font-weight: 700;
+			color: var(--primary);
+		}
+
+		.dashboard .form-group {
+			margin-bottom: 16px;
+		}
+
+		.dashboard .form-group label {
+			display: block;
+			margin-bottom: 6px;
+			font-weight: 600;
+			font-size: 14px;
+		}
+
+		.dashboard .form-group input,
+		.dashboard .form-group select {
+			width: 100%;
+			padding: 12px;
+			border: 2px solid var(--border);
+			border-radius: 6px;
+			font-size: 16px;
+			transition: border-color 0.3s;
+		}
+
+		.dashboard .form-group input:focus,
+		.dashboard .form-group select:focus {
+			outline: none;
+			border-color: var(--primary);
+		}
+
+		.dashboard .date-grid {
+			display: grid;
+			gap: 12px;
+		}
+
+		.dashboard .btn {
+			width: 100%;
+			padding: 12px 20px;
+			background: var(--gradient-bg);
+			color: white;
+			border: none;
+			border-radius: 6px;
+			font-size: 16px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: transform 0.2s;
+		}
+
+		.dashboard .btn:hover {
+			transform: translateY(-2px);
+		}
+
+		.dashboard .btn-success {
+			background: linear-gradient(135deg, var(--success), #45a049);
+		}
+
+		.dashboard .btn-danger {
+			background: linear-gradient(135deg, var(--danger), #d32f2f);
+		}
+
+		.message {
+			padding: 10px;
+			margin-top: 10px;
+			border-radius: 5px;
+			text-align: center;
+		}
+
+		.message-success {
+			background-color: #e8f5e9;
+			color: #2e7d32;
+		}
+
+		.message-error {
+			background-color: #ffebee;
+			color: #c62828;
+		}
+
+		.sidebar-toggle {
+			position: absolute;
+			top: 20px;
+			left: 20px;
+			z-index: 1200;
+			transition: left .25s ease;
+		}
+
+		.sidebar-toggle button {
+			width: 42px;
+			height: 42px;
+			border-radius: 50%;
+			border: none;
+			cursor: pointer;
+			color: white;
+			font-size: 20px;
+			font-weight: 800;
+			background: rgb(91, 12, 194);
+			box-shadow: var(--shadow);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: transform .2s ease;
+		}
+
+		.sidebar-toggle button:hover {
+			transform: translateY(-2px);
+		}
+
+		.sidebar-toggle.shifted {
+			left: 280px;
+		}
+
+		.side-drawer {
+			position: fixed;
+			top: 0;
+			left: 0;
+			height: 100%;
+			width: 260px;
+			background: #fff;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+			transform: translateX(-100%);
+			transition: transform .25s ease;
+			z-index: 1150;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.side-drawer.open {
+			transform: translateX(0);
+		}
+
+		.side-drawer .drawer-header {
+			background: var(--gradient-bg);
+			color: #fff;
+			padding: 18px 16px;
+			font-weight: 800;
+			letter-spacing: .5px;
+		}
+
+		.side-drawer .drawer-list {
+			padding: 12px;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.side-drawer .drawer-link {
+			padding: 12px 14px;
+			border-radius: 8px;
+			border: 2px solid var(--border);
+			background: #f8f9ff;
+			font-weight: 700;
+			color: var(--primary);
+			cursor: pointer;
+			text-align: left;
+		}
+
+		.side-drawer .drawer-link.active {
+			border-color: var(--primary);
+			background: #eef0ff;
+		}
+
+		.drawer-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, .25);
+			backdrop-filter: blur(1px);
+			z-index: 1100;
+			display: none;
+		}
+
+		.drawer-backdrop.show {
+			display: block;
+		}
+
+		.global-controls {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			z-index: 1400;
+			display: flex;
+			gap: 8px;
+		}
+		.global-controls .ctrl-btn {
+			padding: 10px 14px;
+			border: none;
+			border-radius: 6px;
+			color: #fff;
+			font-weight: 700;
+			cursor: pointer;
+			box-shadow: var(--shadow);
+			background: #764ba2;
+		}
+		.global-controls .ctrl-btn.secondary { background: #667eea; }
+
+		.global-panel {
+			position: absolute;
+			top: 72px;
+			right: 20px;
+			width: 280px;
+			background: #fff;
+			border-radius: 10px;
+			box-shadow: 0 10px 30px rgba(0,0,0,.15);
+			z-index: 1400;
+			padding: 14px;
+			display: none;
+		}
+		.global-panel.open { display: block; }
+		.global-panel h4 { margin: 0 0 10px 0; color: var(--primary); }
+		.global-panel .form-group { margin-bottom: 12px; }
+		.global-panel select {
+			width: 100%;
+			padding: 10px;
+			border: 2px solid var(--border);
+			border-radius: 6px;
+			font-size: 14px;
+		}
+		.global-panel .actions {
+			display: flex; gap: 8px; margin-top: 8px;
+		}
+		.global-panel .actions button {
+			flex: 1;
+			border: none; border-radius: 6px; padding: 10px 12px; color: #fff; cursor: pointer; font-weight: 700;
+		}
+		.global-panel .apply { background: #667eea; }
+		.global-panel .clear { background: #999; }
+	</style>
+</head>
+
+<body>
+	<div class="sidebar-toggle">
+		<button id="drawerToggle" aria-label="Open navigation">&lt;</button>
+	</div>
+	<div id="drawerBackdrop" class="drawer-backdrop"></div>
+	<aside id="sideDrawer" class="side-drawer" aria-hidden="true">
+		<div class="drawer-header">Dashboards</div>
+		<div class="drawer-list">
+			<button id="navKRI" class="drawer-link active">KRI</button>
+			<button id="navRHI" class="drawer-link">RHI</button>
+			<button id="navMITRE" class="drawer-link">MITRE</button>
+			<button id="navRISK" class="drawer-link">RISK ANALYSIS</button>
+		</div>
+	</aside>
+
+	<div class="global-controls">
+		<button id="kriFilterBtn" class="ctrl-btn">Filter</button>
+		<button id="kriExportBtn" class="ctrl-btn secondary">Export</button>
+	</div>
+
+	<div id="kriFilterPanel" class="global-panel" aria-hidden="true">
+		<h4>Filter by Year & Quarter</h4>
+		<div class="form-group">
+			<label for="kriYearSelect">Year</label>
+			<select id="kriYearSelect">
+				<option value="">Select year...</option>
+			</select>
+		</div>
+		<div class="form-group">
+			<label for="kriQuarterSelect">Quarter</label>
+			<select id="kriQuarterSelect">
+				<option value="">Select quarter...</option>
+				<option value="Q1">Q1</option>
+				<option value="Q2">Q2</option>
+				<option value="Q3">Q3</option>
+				<option value="Q4">Q4</option>
+			</select>
+		</div>
+		<div class="actions">
+			<button class="apply" id="kriApplyFilter">Apply</button>
+			<button class="clear" id="kriClearFilter">Clear</button>
+		</div>
+	</div>
+
+	<div id="kriExportPanel" class="global-panel" aria-hidden="true">
+		<h4>Export Report</h4>
+		<div class="form-group">
+			<label for="kriExportFormat">Format</label>
+			<select id="kriExportFormat">
+				<option value="html">HTML</option>
+				<option value="pdf">PDF</option>
+				<option value="docx">DOCX</option>
+			</select>
+		</div>
+		<div class="actions">
+			<button class="apply" id="kriExportDownload">Download</button>
+		</div>
+		<div style="margin-top:8px;color:#666;font-size:12px;">If no filter is set, exports all data.</div>
+	</div>
+
+	<div id="dataStatus" class="data-status" style="display: none;"></div>
+
+	<div class="container" id="mainPage">
+		<div class="header">
+			<h1>Key Risk Indicator Metrics</h1>
+		</div>
+
+		<div class="dashboard-grid">
+			<div class="dashboard-card">
+				<h2>KRI2</h2>
+				<p>Percentage of critical initiatives/projects engage with information security at the requirements phase</p>
+				<div class="threshold">Threshold: 95%</div>
+				<div class="chart-container">
+					<canvas id="kri2ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri2')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI3</h2>
+				<p>Percentage of environments evaluated to determine whether or not they are critical</p>
+				<div class="threshold">Threshold: 80%</div>
+				<div class="chart-container">
+					<canvas id="kri3ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri3')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI4</h2>
+				<p>Number of realized risk which is coming from threats that identified as weak threat with low
+					probability</p>
+				<div class="threshold">Threshold: 1 realized risk</div>
+				<div class="chart-container">
+					<canvas id="kri4ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri4')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI5</h2>
+				<p>Percentage of outstanding Critical risk mitigation actions vs. agreed plan</p>
+				<div class="threshold">Threshold: 0% for Critical Risks</div>
+				<div class="chart-container">
+					<canvas id="kri5ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri5')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI6</h2>
+				<p>Percentage of outstanding High and moderate risk mitigation actions vs. agreed plan</p>
+				<div class="threshold">Threshold: 10%</div>
+				<div class="chart-container">
+					<canvas id="kri6ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri6')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI8</h2>
+				<p>Mean Time Between Critical System Failures (Days)</p>
+				<div class="threshold">Threshold: 120 days</div>
+				<div class="chart-container">
+					<canvas id="kri8ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri8')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI9</h2>
+				<p>Unauthorized access to strictly confidential data in any critical systems</p>
+				<div class="threshold">Threshold: 0 unauthorized accesses</div>
+				<div class="chart-container">
+					<canvas id="kri9ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri9')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI10</h2>
+				<p>Number of incidents affecting critical applications</p>
+				<div class="threshold">Threshold: 2 incidents per month</div>
+				<div class="chart-container">
+					<canvas id="kri10ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri10')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI12</h2>
+				<p>Incidents Exceeding RTO</p>
+				<div class="threshold">Threshold: 0</div>
+				<div class="chart-container">
+					<canvas id="kri12ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri12')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI13</h2>
+				<p>Number of incidents resulting in downtime within RTO</p>
+				<div class="threshold">Threshold: 2 (lower is better)</div>
+				<div class="chart-container">
+					<canvas id="kri13ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri13')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI15</h2>
+				<p>% of Critical Systems without up to date patches</p>
+				<div class="threshold">Threshold: 0%</div>
+				<div class="chart-container">
+					<canvas id="kri15ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri15')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI18</h2>
+				<p>Percentage of critical systems not included in business continuity and disaster recovery plans</p>
+				<div class="threshold">Threshold: 10%</div>
+				<div class="chart-container">
+					<canvas id="kri18ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri18')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI19</h2>
+				<p>Average time to recover from an incident</p>
+				<div class="threshold">Threshold: &lt; RTO time (BCP)</div>
+				<div class="chart-container">
+					<canvas id="kri19ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri19')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI20</h2>
+				<p>Number of incidents resulting in loss of customer information</p>
+				<div class="threshold">Threshold: 0 incidents per month</div>
+				<div class="chart-container">
+					<canvas id="kri20ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri20')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI21</h2>
+				<p>Number of privacy incidents resulting in legal/regulatory proceedings</p>
+				<div class="threshold">Threshold: 0 incidents per month</div>
+				<div class="chart-container">
+					<canvas id="kri21ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri21')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI22</h2>
+				<p>Percentage of incidents detected by controls</p>
+				<div class="threshold">Threshold: 70%</div>
+				<div class="chart-container">
+					<canvas id="kri22ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri22')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI27</h2>
+				<p>Percentage of Critical risks defined in risk registry which do not have a defined risk owner and approved action plan</p>
+				<div class="threshold">Threshold: 0% for Critical Risks</div>
+				<div class="chart-container">
+					<canvas id="kri27ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri27')">View Details</button>
+			</div>
+
+			<div class="dashboard-card">
+				<h2>KRI28</h2>
+				<p>Percentage of High or Moderate risks defined in risk registry which do not have a defined risk owner and approved action plan</p>
+				<div class="threshold">Threshold: 10% for High/Moderate</div>
+				<div class="chart-container">
+					<canvas id="kri28ComparisonChartMain"></canvas>
+				</div>
+				<button class="btn-view" onclick="navigateTo('kri28')">View Details</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI2 Dashboard -->
+	<div class="container dashboard" id="kri2Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI2: Percentage of critical initiatives/projects engage with information security at the requirements phase</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri2CurrentKpi">
+								<div class="kpi-value" id="kri2CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri2TrendBadge">
+									<span id="kri2TrendIcon">-</span>
+									<span id="kri2TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri2ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri2FilterStart"><option value="">Start...</option></select>
+							<select id="kri2FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri2TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 95%)</h2>
+			<div class="chart-container">
+				<canvas id="kri2ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI3 Dashboard -->
+	<div class="container dashboard" id="kri3Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI3: Percentage of environments evaluated to determine whether or not they are critical</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri3CurrentKpi">
+								<div class="kpi-value" id="kri3CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri3TrendBadge">
+									<span id="kri3TrendIcon">-</span>
+									<span id="kri3TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri3ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri3FilterStart"><option value="">Start...</option></select>
+							<select id="kri3FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri3TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: >80%)</h2>
+			<div class="chart-container">
+				<canvas id="kri3ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI4 Dashboard -->
+	<div class="container dashboard" id="kri4Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI4: Number of realized risk which is coming from threats that identified as weak threat with low probability</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri4CurrentKpi">
+								<div class="kpi-value" id="kri4CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri4TrendBadge">
+									<span id="kri4TrendIcon">-</span>
+									<span id="kri4TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri4ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri4FilterStart"><option value="">Start...</option></select>
+							<select id="kri4FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri4TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 1 realized risk)</h2>
+			<div class="chart-container">
+				<canvas id="kri4ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI5 Dashboard -->
+	<div class="container dashboard" id="kri5Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI5: Percentage of outstanding Critical risk mitigation actions vs. agreed plan</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri5CurrentKpi">
+								<div class="kpi-value" id="kri5CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri5TrendBadge">
+									<span id="kri5TrendIcon">-</span>
+									<span id="kri5TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri5ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri5FilterStart"><option value="">Start...</option></select>
+							<select id="kri5FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri5TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0% for Critical Risks)</h2>
+			<div class="chart-container">
+				<canvas id="kri5ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI6 Dashboard -->
+	<div class="container dashboard" id="kri6Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI6: Percentage of outstanding High and moderate risk mitigation actions vs. agreed plan</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri6CurrentKpi">
+								<div class="kpi-value" id="kri6CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri6TrendBadge">
+									<span id="kri6TrendIcon">-</span>
+									<span id="kri6TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri6ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri6FilterStart"><option value="">Start...</option></select>
+							<select id="kri6FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri6TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 10%)</h2>
+			<div class="chart-container">
+				<canvas id="kri6ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI8 Dashboard -->
+	<div class="container dashboard" id="kri8Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI8: Mean Time Between Critical System Failures (Days)</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label for="kri8AppSelect">Select System:</label>
+						<select id="kri8AppSelect">
+							<option value="">Select a system...</option>
+						</select>
+						<div class="date-filter" style="margin-top:12px;">
+							<label>Filter Period:</label>
+							<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="kri8FilterStart">
+									<option value="">Start...</option>
+								</select>
+								<select id="kri8FilterEnd">
+									<option value="">End...</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="kpi-cards">
+						<div class="kpi-card" id="kri8CurrentKpi">
+							<div class="kpi-value" id="kri8CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+							<div class="trend" id="kri8TrendBadge">
+								<span id="kri8TrendIcon">-</span>
+								<span id="kri8TrendText">Loading...</span>
+							</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="kri8ChangeValue">-</div>
+							<div class="kpi-label">Quarter Change</div>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri8TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">System Comparison (Threshold: 120 days)</h2>
+			<div class="chart-container">
+				<canvas id="kri8ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI9 Dashboard -->
+	<div class="container dashboard" id="kri9Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI9: Unauthorized access to strictly confidential data in any critical systems</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri9CurrentKpi">
+								<div class="kpi-value" id="kri9CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri9TrendBadge">
+									<span id="kri9TrendIcon">-</span>
+									<span id="kri9TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri9ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri9FilterStart"><option value="">Start...</option></select>
+							<select id="kri9FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri9TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0 unauthorized accesses)</h2>
+			<div class="chart-container">
+				<canvas id="kri9ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI10 Dashboard -->
+	<div class="container dashboard" id="kri10Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI10: Number of incidents affecting critical applications</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label for="kri10AppSelect">Select System:</label>
+						<select id="kri10AppSelect">
+							<option value="">Select a system...</option>
+						</select>
+						<div class="date-filter" style="margin-top:12px;">
+							<label>Filter Period:</label>
+							<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="kri10FilterStart">
+									<option value="">Start...</option>
+								</select>
+								<select id="kri10FilterEnd">
+									<option value="">End...</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="kpi-cards">
+						<div class="kpi-card" id="kri10CurrentKpi">
+							<div class="kpi-value" id="kri10CurrentValue">-</div>
+							<div class="kpi-label">Latest Period</div>
+							<div class="trend" id="kri10TrendBadge">
+								<span id="kri10TrendIcon">-</span>
+								<span id="kri10TrendText">Loading...</span>
+							</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="kri10ChangeValue">-</div>
+							<div class="kpi-label">Period Change</div>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri10TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">System Comparison (Threshold: 2 incidents per month)</h2>
+			<div class="chart-container">
+				<canvas id="kri10ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI12 Dashboard -->
+	<div class="container dashboard" id="kri12Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI12: Incidents Exceeding RTO</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label for="kri12AppSelect">Select System:</label>
+						<select id="kri12AppSelect">
+							<option value="">Select a system...</option>
+						</select>
+						<div class="date-filter" style="margin-top:12px;">
+							<label>Filter Period:</label>
+							<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="kri12FilterStart">
+									<option value="">Start...</option>
+								</select>
+								<select id="kri12FilterEnd">
+									<option value="">End...</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="kpi-cards">
+						<div class="kpi-card" id="kri12CurrentKpi">
+							<div class="kpi-value" id="kri12CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+							<div class="trend" id="kri12TrendBadge">
+								<span id="kri12TrendIcon">-</span>
+								<span id="kri12TrendText">Loading...</span>
+							</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="kri12ChangeValue">-</div>
+							<div class="kpi-label">Quarter Change</div>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri12TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">System Comparison (Threshold: 0)</h2>
+			<div class="chart-container">
+				<canvas id="kri12ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI13 Dashboard -->
+	<div class="container dashboard" id="kri13Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI13: Number of incidents resulting in downtime within RTO</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label for="kri13AppSelect">Select System:</label>
+						<select id="kri13AppSelect">
+							<option value="">Select a system...</option>
+						</select>
+						<div class="date-filter" style="margin-top:12px;">
+							<label>Filter Period:</label>
+							<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="kri13FilterStart">
+									<option value="">Start...</option>
+								</select>
+								<select id="kri13FilterEnd">
+									<option value="">End...</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="kpi-cards">
+						<div class="kpi-card" id="kri13CurrentKpi">
+							<div class="kpi-value" id="kri13CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+							<div class="trend" id="kri13TrendBadge">
+								<span id="kri13TrendIcon">-</span>
+								<span id="kri13TrendText">Loading...</span>
+							</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="kri13ChangeValue">-</div>
+							<div class="kpi-label">Quarter Change</div>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri13TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">System Comparison (Threshold: 2)</h2>
+			<div class="chart-container">
+				<canvas id="kri13ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI15 Dashboard -->
+	<div class="container dashboard" id="kri15Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI15: % of Critical Systems without up to date patches</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri15CurrentKpi">
+								<div class="kpi-value" id="kri15CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri15TrendBadge">
+									<span id="kri15TrendIcon">-</span>
+									<span id="kri15TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri15ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri15FilterStart"><option value="">Start...</option></select>
+							<select id="kri15FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri15TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0%)</h2>
+			<div class="chart-container">
+				<canvas id="kri15ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI18 Dashboard -->
+	<div class="container dashboard" id="kri18Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI18: Percentage of critical systems not included in business continuity and disaster recovery plans</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri18CurrentKpi">
+								<div class="kpi-value" id="kri18CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri18TrendBadge">
+									<span id="kri18TrendIcon">-</span>
+									<span id="kri18TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri18ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri18FilterStart"><option value="">Start...</option></select>
+							<select id="kri18FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri18TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 10%)</h2>
+			<div class="chart-container">
+				<canvas id="kri18ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI19 Dashboard -->
+	<div class="container dashboard" id="kri19Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI19: Average time to recover from an incident</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label for="kri19AppSelect">Select System:</label>
+						<select id="kri19AppSelect">
+							<option value="">Select a system...</option>
+						</select>
+						<div class="date-filter" style="margin-top:12px;">
+							<label>Filter Period:</label>
+							<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="kri19FilterStart">
+									<option value="">Start...</option>
+								</select>
+								<select id="kri19FilterEnd">
+									<option value="">End...</option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="kpi-cards">
+						<div class="kpi-card" id="kri19CurrentKpi">
+							<div class="kpi-value" id="kri19CurrentValue">-</div>
+							<div class="kpi-label">Latest Quarter</div>
+							<div class="trend" id="kri19TrendBadge">
+								<span id="kri19TrendIcon">-</span>
+								<span id="kri19TrendText">Loading...</span>
+							</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-value" id="kri19ChangeValue">-</div>
+							<div class="kpi-label">Quarter Change</div>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri19TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">System Comparison (Threshold: &lt; RTO time (BCP))</h2>
+			<div class="chart-container">
+				<canvas id="kri19ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI20 Dashboard -->
+	<div class="container dashboard" id="kri20Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI20: Number of incidents resulting in loss of customer information</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri20CurrentKpi">
+								<div class="kpi-value" id="kri20CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri20TrendBadge">
+									<span id="kri20TrendIcon">-</span>
+									<span id="kri20TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri20ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri20FilterStart"><option value="">Start...</option></select>
+							<select id="kri20FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container">
+					<canvas id="kri20TrendChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0 incidents per month)</h2>
+			<div class="chart-container">
+				<canvas id="kri20ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI21 Dashboard -->
+	<div class="container dashboard" id="kri21Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI21: Number of privacy incidents resulting in legal/regulatory proceedings</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri21CurrentKpi">
+								<div class="kpi-value" id="kri21CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri21TrendBadge">
+									<span id="kri21TrendIcon">-</span>
+									<span id="kri21TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri21ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri21FilterStart"><option value="">Start...</option></select>
+							<select id="kri21FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri21TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0 incidents per month)</h2>
+			<div class="chart-container">
+				<canvas id="kri21ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI22 Dashboard -->
+	<div class="container dashboard" id="kri22Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI22: Percentage of incidents detected by controls</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri22CurrentKpi">
+								<div class="kpi-value" id="kri22CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri22TrendBadge">
+									<span id="kri22TrendIcon">-</span>
+									<span id="kri22TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri22ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri22FilterStart"><option value="">Start...</option></select>
+							<select id="kri22FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri22TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 70%)</h2>
+			<div class="chart-container">
+				<canvas id="kri22ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI27 Dashboard -->
+	<div class="container dashboard" id="kri27Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI27: Percentage of Critical risks defined in risk registry which do not have a defined risk owner and approved action plan</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri27CurrentKpi">
+								<div class="kpi-value" id="kri27CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri27TrendBadge">
+									<span id="kri27TrendIcon">-</span>
+									<span id="kri27TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri27ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri27FilterStart"><option value="">Start...</option></select>
+							<select id="kri27FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri27TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 0% for Critical Risks)</h2>
+			<div class="chart-container">
+				<canvas id="kri27ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- KRI28 Dashboard -->
+	<div class="container dashboard" id="kri28Dashboard">
+		<button class="back-button" onclick="navigateBack()">Back</button>
+		<div class="card">
+			<div class="header">
+				<h1>KRI28: Percentage of High or Moderate risks defined in risk registry which do not have a defined risk owner and approved action plan</h1>
+			</div>
+		</div>
+		<div class="card">
+			<div class="grid">
+				<div class="sidebar">
+					<div class="app-selector">
+						<label>Latest Data:</label>
+						<div class="kpi-cards">
+							<div class="kpi-card" id="kri28CurrentKpi">
+								<div class="kpi-value" id="kri28CurrentValue">-</div>
+								<div class="kpi-label">Latest Quarter</div>
+								<div class="trend" id="kri28TrendBadge">
+									<span id="kri28TrendIcon">-</span>
+									<span id="kri28TrendText">Loading...</span>
+								</div>
+							</div>
+							<div class="kpi-card">
+								<div class="kpi-value" id="kri28ChangeValue">-</div>
+								<div class="kpi-label">Quarter Change</div>
+							</div>
+						</div>
+					</div>
+					<div class="app-selector" style="margin-top:12px;">
+						<label>Filter Period (Quarter):</label>
+						<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+							<select id="kri28FilterStart"><option value="">Start...</option></select>
+							<select id="kri28FilterEnd"><option value="">End...</option></select>
+						</div>
+					</div>
+				</div>
+				<div class="chart-container"><canvas id="kri28TrendChart"></canvas></div>
+			</div>
+		</div>
+		<div class="card">
+			<h2 class="section-title">Quarter Comparison (Threshold: 10% for High/Moderate)</h2>
+			<div class="chart-container">
+				<canvas id="kri28ComparisonChart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// Access control: detect read-only mode
+		window.canEdit = true;
+		async function __initAccessKRI(){
+			try{
+				const res = await fetch('/api/access');
+				const data = await res.json();
+				window.canEdit = !!(data && data.canEdit);
+			}catch(e){ window.canEdit = true; }
+			if(!window.canEdit){
+				// Hide known edit forms
+				['DataForm','UpdateForm','DeleteForm','SystemForm','DeleteSystemForm'].forEach(suffix=>{
+					Array.from(document.querySelectorAll(`form[id$="${suffix}"]`)).forEach(f=>{ f.style.display='none'; });
+				});
+			}
+		}
+		document.addEventListener('DOMContentLoaded', __initAccessKRI);
+		const drawer = document.getElementById('sideDrawer');
+		const drawerBackdrop = document.getElementById('drawerBackdrop');
+		const drawerToggle = document.getElementById('drawerToggle');
+
+		function openDrawer() {
+			drawer.classList.add('open');
+			drawerBackdrop.classList.add('show');
+			drawer.setAttribute('aria-hidden', 'false');
+			document.querySelector('.sidebar-toggle').classList.add('shifted');
+			drawerToggle.textContent = '>';
+		}
+
+		function closeDrawer() {
+			drawer.classList.remove('open');
+			drawerBackdrop.classList.remove('show');
+			drawer.setAttribute('aria-hidden', 'true');
+			document.querySelector('.sidebar-toggle').classList.remove('shifted');
+			drawerToggle.textContent = '<';
+		}
+
+		function toggleDrawer() {
+			if (drawer.classList.contains('open')) closeDrawer(); else openDrawer();
+		}
+		drawerToggle.addEventListener('click', toggleDrawer);
+		drawerBackdrop.addEventListener('click', closeDrawer);
+
+		const navKRI = document.getElementById('navKRI');
+		const navRHI = document.getElementById('navRHI');
+		const navMITRE = document.getElementById('navMITRE');
+		const navRISK = document.getElementById('navRISK');
+
+		function setActiveNav(btn) {
+			[navKRI, navRHI, navMITRE, navRISK].forEach(b => b.classList.remove('active'));
+			btn.classList.add('active');
+		}
+
+		navKRI.addEventListener('click', () => {
+			setActiveNav(navKRI);
+			closeDrawer();
+			window.location.href = '/kri';
+		});
+		navRHI.addEventListener('click', () => {
+			setActiveNav(navRHI);
+			closeDrawer();
+			window.location.href = '/rhi';
+		});
+		navMITRE.addEventListener('click', () => {
+			setActiveNav(navMITRE);
+			closeDrawer();
+			window.location.href = '/mitre';
+		});
+		navRISK.addEventListener('click', () => {
+			setActiveNav(navRISK);
+			closeDrawer();
+			window.location.href = '/risk-analysis';
+		});
+
+		let globalKRIData = {};
+		let dashboards = {};
+		const globalKriFilter = { year: null, quarter: null };
+
+		function getMonthsForQuarter(q){
+			return q==='Q1' ? ['01','02','03']
+				: q==='Q2' ? ['04','05','06']
+				: q==='Q3' ? ['07','08','09']
+				: q==='Q4' ? ['10','11','12'] : [];
+		}
+
+		function isPeriodInGlobalKriFilter(period, periodType){
+			// Allow: no filter, year-only, or year+quarter
+			if(!globalKriFilter.year && !globalKriFilter.quarter) return true;
+			const parts = period.split('-'); if(parts.length!==2) return false;
+			if(periodType === 'month'){
+				const [mm, yy] = parts;
+				if(globalKriFilter.year && !globalKriFilter.quarter){
+					return yy === String(globalKriFilter.year);
+				}
+				return yy === String(globalKriFilter.year) && getMonthsForQuarter(globalKriFilter.quarter).includes(mm);
+			}
+			const [qq, yy] = parts;
+			if(globalKriFilter.year && !globalKriFilter.quarter){
+				return yy === String(globalKriFilter.year);
+			}
+			return yy === String(globalKriFilter.year) && qq === globalKriFilter.quarter;
+		}
+
+		function navigateTo(dashboardId) {
+			window.location.hash = `#${dashboardId}Dashboard`;
+			showDashboard(dashboardId);
+		}
+		function navigateBack() {
+			window.location.hash = '#mainPage';
+			showDashboard('main');
+		}
+		function showDashboard(dashboardId) {
+			const pages = ['mainPage', 'kri2Dashboard', 'kri3Dashboard', 'kri4Dashboard', 'kri5Dashboard', 'kri6Dashboard', 'kri8Dashboard', 'kri9Dashboard', 'kri10Dashboard', 'kri12Dashboard', 'kri13Dashboard', 'kri15Dashboard', 'kri18Dashboard', 'kri19Dashboard', 'kri20Dashboard', 'kri21Dashboard', 'kri22Dashboard', 'kri27Dashboard', 'kri28Dashboard'];
+			pages.forEach(page => {
+				const element = document.getElementById(page);
+				if (element) element.style.display = page === dashboardId || (dashboardId === 'main' && page === 'mainPage') ? 'block' : 'none';
+			});
+
+			const isMain = (dashboardId === 'main') || (dashboardId === 'mainPage') || (!dashboardId);
+			const toggleEl = document.querySelector('.sidebar-toggle');
+			if (toggleEl) toggleEl.style.display = isMain ? 'block' : 'none';
+
+			// Show global Filter/Export only on main dashboard
+			const gc = document.querySelector('.global-controls'); if(gc) gc.style.display = isMain ? 'flex' : 'none';
+			const fp = document.getElementById('kriFilterPanel'); if(fp){ fp.classList.remove('open'); fp.style.removeProperty('display'); }
+			const ep = document.getElementById('kriExportPanel'); if(ep){ ep.classList.remove('open'); ep.style.removeProperty('display'); }
+
+			if (!isMain && typeof closeDrawer === 'function') {
+				closeDrawer();
+			}
+		}
+
+		function showDataStatus(message, type = 'success') {
+			const statusEl = document.getElementById('dataStatus');
+			statusEl.textContent = message;
+			statusEl.className = `data-status ${type}`;
+			statusEl.style.display = 'block';
+			setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+		}
+
+		async function loadKRIData() {
+			try {
+				const response = await fetch('/api/kri-data');
+				if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+				globalKRIData = await response.json();
+				return globalKRIData;
+			} catch (error) {
+				console.error('Error loading KRI data:', error);
+				showDataStatus('Error loading data: ' + error.message, 'error');
+				return {};
+			}
+		}
+
+		function populateGlobalYearOptions(){
+			const years = new Set();
+			Object.values(globalKRIData || {}).forEach(entry=>{
+				if(entry && entry.data){
+					entry.data.forEach(d=>{
+						if(typeof d.period === 'string' && d.period.includes('-')){
+							const yy = d.period.split('-')[1];
+							if(yy) years.add(yy);
+						}
+					});
+				}
+				if(entry && entry.applications){
+					Object.values(entry.applications).forEach(arr=>{
+						(arr || []).forEach(d=>{
+							if(typeof d.period === 'string' && d.period.includes('-')){
+								const yy = d.period.split('-')[1];
+								if(yy) years.add(yy);
+							}
+						});
+					});
+				}
+			});
+			const select = document.getElementById('kriYearSelect');
+			select.innerHTML = '<option value="">Select year...</option>';
+			Array.from(years).sort().forEach(y=>{
+				const opt = document.createElement('option');
+				opt.value = y; opt.textContent = y;
+				select.appendChild(opt);
+			});
+		}
+
+		class BaseDashboard {
+			constructor(data, kriId, dataKey = 'percentage', threshold = 0, isHigherBetter = true) {
+				this.kriId = kriId;
+				this.dataKey = dataKey;
+				this.threshold = threshold;
+				this.isHigherBetter = isHigherBetter;
+				this.data = (data[kriId]?.data || []).slice();
+				this.filtered = [];
+				this.filterStart = '';
+				this.filterEnd = '';
+				this.charts = { trend: null, comparison: null, comparison: null, comparisonMain: null };
+				this.initCharts();
+				this.renderForms();
+				this.populateDeletePeriodOptions();
+				this.bindFilters();
+				this.refresh();
+			}
+
+			initCharts() {
+				const trendCtx = document.getElementById(`${this.kriId}TrendChart`).getContext('2d');
+				this.charts.trend = new Chart(trendCtx, {
+					type: 'line',
+					data: { labels: [], datasets: [{ label: this.dataKey === 'percentage' ? 'Percentage' : 'Count', data: [], borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.1)', borderWidth: 3, fill: true, tension: 0.4, pointRadius: 6 }] },
+					options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: this.dataKey === 'percentage' ? 100 : undefined } } }
+				});
+
+				const compCtx = document.getElementById(`${this.kriId}ComparisonChart`).getContext('2d');
+				this.charts.comparison = new Chart(compCtx, {
+					type: 'bar',
+					data: { labels: [], datasets: [{ label: this.dataKey === 'percentage' ? 'Percentage' : 'Count', data: [], backgroundColor: [], borderColor: [], borderWidth: 1 }] },
+					options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: this.dataKey === 'percentage' ? 100 : undefined } }, plugins: { legend: { display: false } } }
+				});
+
+				const compMainCtx = document.getElementById(`${this.kriId}ComparisonChartMain`).getContext('2d');
+				this.charts.comparisonMain = new Chart(compMainCtx, {
+					type: 'bar',
+					data: { labels: [], datasets: [{ label: this.dataKey === 'percentage' ? 'Percentage' : 'Count', data: [], backgroundColor: [], borderColor: [], borderWidth: 1 }] },
+					options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: this.dataKey === 'percentage' ? 100 : undefined } }, plugins: { legend: { display: false } } }
+				});
+			}
+
+			renderForms() {
+				const container = document.getElementById(`${this.kriId}Dashboard`);
+				if (!container) return;
+				const card = document.createElement('div');
+				card.className = 'card';
+				const label = this.dataKey === 'percentage' ? 'Add Percentage' : 'Add Value';
+				const step = this.dataKey === 'percentage' ? '0.01' : '1';
+				const min = '0';
+				card.innerHTML = `
+					<div class="forms-grid">
+						<div class="form-section">
+							<h3>Add Data Point</h3>
+							<form id="${this.kriId}DataForm">
+								<div class="form-group">
+									<label>Period:</label>
+									<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+										<select id="${this.kriId}YearSelect" required>
+											<option value="2023">2023</option>
+											<option value="2024">2024</option>
+											<option value="2025" selected>2025</option>
+											<option value="2026">2026</option>
+											<option value="2027">2027</option>
+										</select>
+										<select id="${this.kriId}QuarterSelect" required>
+											<option value="Q1">Q1</option>
+											<option value="Q2">Q2</option>
+											<option value="Q3">Q3</option>
+											<option value="Q4">Q4</option>
+										</select>
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="${this.kriId}ValueInput">${label}:</label>
+									<input type="number" id="${this.kriId}ValueInput" step="${step}" min="${min}" placeholder="e.g., 90.5" required>
+								</div>
+								<button type="submit" class="btn">Add Data Point</button>
+							</form>
+							<div id="${this.kriId}DataMessage"></div>
+						</div>
+						<div class="form-section">
+							<h3>Update/Delete Data Point</h3>
+							<form id="${this.kriId}UpdateForm">
+								<div class="form-group">
+									<label>Existing Period (to update):</label>
+									<input type="text" id="${this.kriId}UpdatePeriod" placeholder="e.g., Q2-2025" required>
+								</div>
+								<div class="form-group">
+									<label>New Value (optional):</label>
+									<input type="number" id="${this.kriId}UpdateValue" step="${step}" min="${min}" placeholder="leave blank to keep">
+								</div>
+								<button type="submit" class="btn btn-success">Update</button>
+							</form>
+							<form id="${this.kriId}DeleteForm" style="margin-top:16px;">
+								<div class="form-group">
+									<label>Delete Period:</label>
+									<select id="${this.kriId}DeletePeriodSelect" required>
+										<option value="">Select period...</option>
+									</select>
+								</div>
+								<button type="submit" class="btn btn-danger">Delete</button>
+							</form>
+							<div id="${this.kriId}UpdateMessage"></div>
+						</div>
+						<div class="form-section"></div>
+					</div>`;
+				container.appendChild(card);
+				document.getElementById(`${this.kriId}DataForm`).addEventListener('submit', (e) => { e.preventDefault(); this.handleAddDataPoint(); });
+				document.getElementById(`${this.kriId}UpdateForm`).addEventListener('submit', (e) => { e.preventDefault(); this.handleUpdateDataPoint(); });
+				document.getElementById(`${this.kriId}DeleteForm`).addEventListener('submit', (e) => { e.preventDefault(); this.handleDeleteDataPoint(); });
+			}
+
+			populateDeletePeriodOptions() {
+				const selectEl = document.getElementById(`${this.kriId}DeletePeriodSelect`);
+				if (!selectEl) return;
+				selectEl.innerHTML = '<option value="">Select period...</option>';
+				this.data.forEach(d => {
+					const o = document.createElement('option');
+					o.value = d.period;
+					o.textContent = d.period;
+					selectEl.appendChild(o);
+				});
+			}
+
+			bindFilters(){
+				const s = document.getElementById(`${this.kriId}FilterStart`);
+				const e = document.getElementById(`${this.kriId}FilterEnd`);
+				if(s) s.addEventListener('change', ()=>{ this.filterStart = s.value; this.refresh(); });
+				if(e) e.addEventListener('change', ()=>{ this.filterEnd = e.value; this.refresh(); });
+			}
+
+			populateFilterSelects(){
+				const s = document.getElementById(`${this.kriId}FilterStart`);
+				const e = document.getElementById(`${this.kriId}FilterEnd`);
+				if(!s || !e) return;
+				s.innerHTML = '<option value="">Start...</option>';
+				e.innerHTML = '<option value="">End...</option>';
+				this.data.forEach(d => {
+					const o = document.createElement('option');
+					o.value = d.period; o.textContent = d.period;
+					s.appendChild(o.cloneNode(true)); e.appendChild(o);
+				});
+				if(this.filterStart) s.value = this.filterStart;
+				if(this.filterEnd) e.value = this.filterEnd;
+			}
+
+			comparePeriods(a,b){
+				const [aq, ay] = a.split('-'); const [bq, by] = b.split('-');
+				if(ay !== by) return parseInt(ay)-parseInt(by);
+				return parseInt(aq.replace('Q','')) - parseInt(bq.replace('Q',''));
+			}
+
+			applyFilter(){
+				if(!this.filterStart && !this.filterEnd){ this.filtered = this.data.slice(); }
+				else {
+					this.filtered = this.data.filter(d=>{
+						const afterStart = !this.filterStart || this.comparePeriods(d.period, this.filterStart) >= 0;
+						const beforeEnd = !this.filterEnd || this.comparePeriods(d.period, this.filterEnd) <= 0;
+						return afterStart && beforeEnd;
+					});
+				}
+				this.filtered = (this.filtered || this.data).filter(d => isPeriodInGlobalKriFilter(d.period, 'quarter'));
+			}
+
+			refresh(){
+				this.populateFilterSelects();
+				this.applyFilter();
+				this.updateUI();
+			}
+
+			async handleAddDataPoint() {
+				const year = document.getElementById(`${this.kriId}YearSelect`).value;
+				const quarter = document.getElementById(`${this.kriId}QuarterSelect`).value;
+				const valueRaw = document.getElementById(`${this.kriId}ValueInput`).value;
+				const messageDiv = document.getElementById(`${this.kriId}DataMessage`);
+				const valNum = parseFloat(valueRaw);
+				if (isNaN(valNum) || valNum < 0) { this.showMessage(messageDiv, 'Please enter a valid value', 'error'); return; }
+				const period = `${quarter}-${year}`;
+				try {
+					const res = await fetch('/api/add-data-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kriId: this.kriId, period, value: valNum, valueField: this.dataKey }) });
+					if (!res.ok) throw new Error(await res.text());
+					const payload = await res.json();
+					this.data = (payload.kri.data || []).slice();
+					globalKRIData[this.kriId] = payload.kri;
+					this.refresh();
+					this.showMessage(messageDiv, `Saved ${period}.`, 'success');
+					showDataStatus('Data saved!', 'success');
+					document.getElementById(`${this.kriId}ValueInput`).value = '';
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Save failed', 'error');
+					showDataStatus('Save failed', 'error');
+				}
+			}
+
+			async handleUpdateDataPoint() {
+				const period = document.getElementById(`${this.kriId}UpdatePeriod`).value.trim();
+				const newValueRaw = document.getElementById(`${this.kriId}UpdateValue`).value;
+				const messageDiv = document.getElementById(`${this.kriId}UpdateMessage`);
+				const payload = { kriId: this.kriId, period, valueField: this.dataKey };
+				if (newValueRaw !== '') payload.value = parseFloat(newValueRaw);
+				try {
+					const res = await fetch('/api/update-data-point', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+					if (!res.ok) throw new Error(await res.text());
+					const data = await res.json();
+					this.data = (data.kri.data || []).slice();
+					globalKRIData[this.kriId] = data.kri;
+					this.refresh();
+					this.showMessage(messageDiv, 'Updated successfully', 'success');
+					showDataStatus('Updated!', 'success');
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Update failed', 'error');
+					showDataStatus('Update failed', 'error');
+				}
+			}
+
+			async handleDeleteDataPoint() {
+				const period = document.getElementById(`${this.kriId}DeletePeriodSelect`).value;
+				const messageDiv = document.getElementById(`${this.kriId}UpdateMessage`);
+				if (!period) { this.showMessage(messageDiv, 'Select period', 'error'); return; }
+				try {
+					const res = await fetch('/api/delete-data-point', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kriId: this.kriId, period }) });
+					if (!res.ok) throw new Error(await res.text());
+					const data = await res.json();
+					this.data = (data.kri.data || []).slice();
+					globalKRIData[this.kriId] = data.kri;
+					this.refresh();
+					this.showMessage(messageDiv, 'Deleted', 'success');
+					showDataStatus('Deleted!', 'success');
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Delete failed', 'error');
+					showDataStatus('Delete failed', 'error');
+				}
+			}
+
+			showMessage(element, text, type) {
+				element.innerHTML = `<div class="message message-${type}">${text}</div>`;
+				setTimeout(() => element.innerHTML = '', 3000);
+			}
+
+			refresh() {
+				// Reload data from server and update UI
+				this.updateUI();
+			}
+
+			refresh() {
+				// Reload data from server and update UI
+				this.updateUI();
+			}
+
+			updateUI() {
+				this.updateKPIs();
+				this.updateCharts();
+				this.populateDeletePeriodOptions();
+			}
+
+			updateKPIs() {
+				const arr = this.filtered.length ? this.filtered : this.data.filter(d => isPeriodInGlobalKriFilter(d.period, 'quarter'));
+				if (arr.length === 0) {
+					document.getElementById(`${this.kriId}CurrentValue`).textContent = '-';
+					document.getElementById(`${this.kriId}ChangeValue`).textContent = '-';
+					document.getElementById(`${this.kriId}TrendText`).textContent = 'No data';
+					return;
+				}
+				const latest = arr[arr.length - 1];
+				const displayValue = this.dataKey === 'percentage' ? `${Number(latest[this.dataKey]).toFixed(1)}%` : latest[this.dataKey];
+				document.getElementById(`${this.kriId}CurrentValue`).textContent = displayValue;
+				if (arr.length >= 2) {
+					const previous = arr[arr.length - 2];
+					const change = latest[this.dataKey] - previous[this.dataKey];
+					const displayChange = this.dataKey === 'percentage'
+						? (change > 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`)
+						: (change > 0 ? `+${change}` : `${change}`);
+					document.getElementById(`${this.kriId}ChangeValue`).textContent = displayChange;
+
+					const trendBadge = document.getElementById(`${this.kriId}TrendBadge`);
+					const trendIcon = document.getElementById(`${this.kriId}TrendIcon`);
+					const trendText = document.getElementById(`${this.kriId}TrendText`);
+					if (change > 0) {
+						trendBadge.className = 'trend trend-up';
+						trendIcon.textContent = '↗';
+						trendText.textContent = this.isHigherBetter ? 'Improved' : 'Increased';
+					} else if (change < 0) {
+						trendBadge.className = 'trend trend-down';
+						trendIcon.textContent = '↘';
+						trendText.textContent = this.isHigherBetter ? 'Declined' : 'Decreased';
+					} else {
+						trendBadge.className = 'trend trend-neutral';
+						trendIcon.textContent = '→';
+						trendText.textContent = 'Unchanged';
+					}
+
+					const isAlert = this.isHigherBetter ? latest[this.dataKey] < this.threshold : latest[this.dataKey] > this.threshold;
+					if (isAlert) {
+						document.getElementById(`${this.kriId}CurrentKpi`).className = 'kpi-card alert';
+						document.getElementById(`${this.kriId}CurrentValue`).className = 'kpi-value danger';
+					} else {
+						document.getElementById(`${this.kriId}CurrentKpi`).className = 'kpi-card';
+						document.getElementById(`${this.kriId}CurrentValue`).className = 'kpi-value';
+					}
+				} else {
+					document.getElementById(`${this.kriId}ChangeValue`).textContent = '-';
+					document.getElementById(`${this.kriId}TrendText`).textContent = 'Need more data';
+				}
+			}
+
+			updateCharts() {
+				const arr = this.filtered.length ? this.filtered : this.data.filter(d => isPeriodInGlobalKriFilter(d.period, 'quarter'));
+				if (arr.length > 0) {
+					this.charts.trend.data.labels = arr.map(d => d.period);
+					this.charts.trend.data.datasets[0].data = arr.map(d => d[this.dataKey]);
+				} else {
+					this.charts.trend.data.labels = [];
+					this.charts.trend.data.datasets[0].data = [];
+				}
+				this.charts.trend.update();
+
+				const chartData = {
+					labels: arr.map(d => d.period),
+					datasets: [{
+						label: this.dataKey === 'percentage' ? 'Percentage' : 'Count',
+						data: arr.map(d => d[this.dataKey]),
+						backgroundColor: arr.map(d => {
+							const isGood = this.isHigherBetter ? d[this.dataKey] >= this.threshold : d[this.dataKey] <= this.threshold;
+							return isGood ? '#4caf50' : '#f44336';
+						}),
+						borderColor: arr.map(d => {
+							const isGood = this.isHigherBetter ? d[this.dataKey] >= this.threshold : d[this.dataKey] <= this.threshold;
+							return isGood ? '#4caf50' : '#f44336';
+						}),
+						borderWidth: 1
+					}]
+				};
+				this.charts.comparison.data = chartData;
+				this.charts.comparison.update();
+				this.charts.comparisonMain.data = chartData;
+				this.charts.comparisonMain.update();
+			}
+		}
+
+		class ApplicationsKRIDashboard {
+			constructor(data, kriId, metricLabel, metricKey = 'value', threshold = null, isHigherBetter = true, periodType = 'quarter') {
+				this.kriId = kriId;
+				this.metricLabel = metricLabel;
+				this.metricKey = metricKey;
+				this.isHigherBetter = isHigherBetter;
+				this.threshold = threshold;
+				this.periodType = periodType;
+				this.applications = new Map();
+				if (data[kriId] && data[kriId].applications) { this.loadDataFromJSON(data[kriId].applications); }
+				this.selectedApp = null;
+				this.filterStart = '';
+				this.filterEnd = '';
+				this.charts = { trend: null, comparison: null, comparisonMain: null };
+				this.initCharts();
+				this.renderForms();
+				this.updateUI();
+				this.bindEvents();
+			}
+
+			loadDataFromJSON(applicationsData) {
+				for (const [appName, dataPoints] of Object.entries(applicationsData)) {
+					const processedData = dataPoints.map(point => ({ ...point }));
+					this.applications.set(appName, processedData);
+				}
+			}
+
+			bindEvents() {
+				const appSelect = document.getElementById(`${this.kriId}AppSelect`);
+				if (appSelect) appSelect.addEventListener('change', (e) => { this.selectedApp = e.target.value; this.updateUI(); });
+
+				const startSel = document.getElementById(`${this.kriId}FilterStart`);
+				if (startSel) startSel.addEventListener('change', (e) => { this.filterStart = e.target.value; this.updateUI(); });
+				const endSel = document.getElementById(`${this.kriId}FilterEnd`);
+				if (endSel) endSel.addEventListener('change', (e) => { this.filterEnd = e.target.value; this.updateUI(); });
+
+				const sysForm = document.getElementById(`${this.kriId}SystemForm`);
+				if (sysForm) sysForm.addEventListener('submit', (e) => { e.preventDefault(); this.handleAddSystem(); });
+				const dataForm = document.getElementById(`${this.kriId}DataForm`);
+				if (dataForm) dataForm.addEventListener('submit', (e) => { e.preventDefault(); this.handleAddDataPoint(); });
+				const updForm = document.getElementById(`${this.kriId}UpdateForm`);
+				if (updForm) updForm.addEventListener('submit', (e) => { e.preventDefault(); this.handleUpdateDataPoint(); });
+				const delForm = document.getElementById(`${this.kriId}DeleteForm`);
+				if (delForm) delForm.addEventListener('submit', (e) => { e.preventDefault(); this.handleDeleteDataPoint(); });
+				const delSysForm = document.getElementById(`${this.kriId}DeleteSystemForm`);
+				if (delSysForm) delSysForm.addEventListener('submit', (e) => { e.preventDefault(); this.handleDeleteSystem(); });
+				const delAppSelect = document.getElementById(`${this.kriId}DeleteApp`);
+				if (delAppSelect) delAppSelect.addEventListener('change', (e) => { this.updateDeletePeriodOptions(e.target.value); });
+			}
+
+			renderForms() {
+				const container = document.getElementById(`${this.kriId}Dashboard`);
+				if (!container) return;
+				const card = document.createElement('div');
+				card.className = 'card';
+				const periodFields = this.periodType === 'month'
+					? `<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="${this.kriId}MonthSelect" required>
+									<option value="01">January</option>
+									<option value="02">February</option>
+									<option value="03">March</option>
+									<option value="04">April</option>
+									<option value="05">May</option>
+									<option value="06">June</option>
+									<option value="07">July</option>
+									<option value="08">August</option>
+									<option value="09">September</option>
+									<option value="10">October</option>
+									<option value="11">November</option>
+									<option value="12">December</option>
+								</select>
+								<select id="${this.kriId}YearSelect" required>
+									<option value="2023">2023</option>
+									<option value="2024">2024</option>
+									<option value="2025" selected>2025</option>
+									<option value="2026">2026</option>
+									<option value="2027">2027</option>
+								</select>
+							</div>`
+					: `<div class="date-grid" style="grid-template-columns: 1fr 1fr;">
+								<select id="${this.kriId}YearSelect" required>
+									<option value="2023">2023</option>
+									<option value="2024">2024</option>
+									<option value="2025" selected>2025</option>
+									<option value="2026">2026</option>
+									<option value="2027">2027</option>
+								</select>
+								<select id="${this.kriId}QuarterSelect" required>
+									<option value="Q1">Q1</option>
+									<option value="Q2">Q2</option>
+									<option value="Q3">Q3</option>
+									<option value="Q4">Q4</option>
+								</select>
+							</div>`;
+				card.innerHTML = `
+					<div class="forms-grid">
+						<div class="form-section">
+							<h3>Add New System</h3>
+							<form id="${this.kriId}SystemForm">
+								<div class="form-group">
+									<label for="${this.kriId}SystemName">System Name:</label>
+									<input type="text" id="${this.kriId}SystemName" placeholder="e.g., BirBank" required>
+								</div>
+								<button type="submit" class="btn btn-success">Add System</button>
+							</form>
+							<form id="${this.kriId}DeleteSystemForm" style="margin-top:16px;">
+								<div class="form-group">
+									<label for="${this.kriId}DeleteSystemSelect">Delete System:</label>
+									<select id="${this.kriId}DeleteSystemSelect" required>
+										<option value="">Select system...</option>
+									</select>
+								</div>
+								<button type="submit" class="btn btn-danger">Delete System</button>
+							</form>
+							<div id="${this.kriId}SystemMessage"></div>
+						</div>
+						<div class="form-section">
+							<h3>Add Data Point</h3>
+							<form id="${this.kriId}DataForm">
+								<div class="form-group">
+									<label for="${this.kriId}DataApp">System:</label>
+									<select id="${this.kriId}DataApp" required>
+										<option value="">Select system...</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Period:</label>
+									${periodFields}
+								</div>
+								<div class="form-group">
+									<label for="${this.kriId}MetricValue">${this.metricLabel}:</label>
+									<input type="number" id="${this.kriId}MetricValue" step="0.01" min="0" placeholder="e.g., 12" required>
+								</div>
+								<button type="submit" class="btn">Add Data Point</button>
+							</form>
+							<div id="${this.kriId}DataMessage"></div>
+						</div>
+						<div class="form-section">
+							<h3>Update/Delete Data Point</h3>
+							<form id="${this.kriId}UpdateForm">
+								<div class="form-group">
+									<label>System:</label>
+									<select id="${this.kriId}UpdateApp" required>
+										<option value="">Select system...</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Existing Period:</label>
+									<input type="text" id="${this.kriId}UpdatePeriod" placeholder="${this.periodType === 'month' ? 'MM-YYYY' : 'Qx-YYYY'}" required>
+								</div>
+								<div class="form-group">
+									<label>New Value (optional):</label>
+									<input type="number" id="${this.kriId}UpdateValue" step="0.01" min="0" placeholder="leave blank to keep">
+								</div>
+								<button type="submit" class="btn btn-success">Update</button>
+							</form>
+							<form id="${this.kriId}DeleteForm" style="margin-top:16px;">
+								<div class="form-group">
+									<label>System:</label>
+									<select id="${this.kriId}DeleteApp" required>
+										<option value="">Select system...</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Delete Period:</label>
+									<select id="${this.kriId}DeletePeriodSelect" required>
+										<option value="">Select period...</option>
+									</select>
+								</div>
+								<button type="submit" class="btn btn-danger">Delete</button>
+							</form>
+							<div id="${this.kriId}UpdateMessage"></div>
+						</div>
+					</div>`;
+				container.appendChild(card);
+			}
+
+			async handleAddSystem() {
+				const nameInput = document.getElementById(`${this.kriId}SystemName`);
+				const messageDiv = document.getElementById(`${this.kriId}SystemMessage`);
+				const name = (nameInput.value || '').trim();
+				if (!name) { this.showMessage(messageDiv, 'Please enter a system name', 'error'); return; }
+				try {
+					const res = await fetch('/api/add-system', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kriId: this.kriId, systemName: name }) });
+					if (!res.ok) throw new Error(await res.text());
+					const payload = await res.json();
+					this.applications = new Map(Object.entries(payload.kri.applications || {}).map(([k, arr]) => [k, arr.map(p => ({ ...p }))]));
+					this.updateSelectors();
+					this.updateCharts();
+					this.updateUI();
+					this.showMessage(messageDiv, `System "${name}" added successfully!`, 'success');
+					showDataStatus('System added!', 'success');
+					nameInput.value = '';
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Failed to add system', 'error');
+					showDataStatus('Failed to add system', 'error');
+				}
+			}
+
+			async handleDeleteSystem() {
+				const selectEl = document.getElementById(`${this.kriId}DeleteSystemSelect`);
+				const messageDiv = document.getElementById(`${this.kriId}SystemMessage`);
+				const name = (selectEl.value || '').trim();
+				if (!name) { this.showMessage(messageDiv, 'Please select a system', 'error'); return; }
+				try {
+					const res = await fetch('/api/delete-system', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kriId: this.kriId, systemName: name }) });
+					if (!res.ok) throw new Error(await res.text());
+					const payload = await res.json();
+					this.applications = new Map(Object.entries(payload.kri.applications || {}).map(([k, arr]) => [k, arr.map(p => ({ ...p }))]));
+					this.selectedApp = null;
+					this.updateUI();
+					this.showMessage(messageDiv, `System "${name}" deleted.`, 'success');
+					showDataStatus('System deleted!', 'success');
+					selectEl.value = '';
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Delete system failed', 'error');
+					showDataStatus('Delete system failed', 'error');
+				}
+			}
+
+			async handleAddDataPoint() {
+				const app = document.getElementById(`${this.kriId}DataApp`).value;
+				const messageDiv = document.getElementById(`${this.kriId}DataMessage`);
+				if (!app) { this.showMessage(messageDiv, 'Please select a system', 'error'); return; }
+				let period = '';
+				if (this.periodType === 'month') {
+					const month = document.getElementById(`${this.kriId}MonthSelect`).value;
+					const year = document.getElementById(`${this.kriId}YearSelect`).value;
+					period = `${month}-${year}`;
+				} else {
+					const year = document.getElementById(`${this.kriId}YearSelect`).value;
+					const quarter = document.getElementById(`${this.kriId}QuarterSelect`).value;
+					period = `${quarter}-${year}`;
+				}
+				const valueRaw = document.getElementById(`${this.kriId}MetricValue`).value;
+				const valueNum = parseFloat(valueRaw);
+				if (isNaN(valueNum) || valueNum < 0) { this.showMessage(messageDiv, 'Please enter a valid value', 'error'); return; }
+				try {
+					const res = await fetch('/api/add-data-point', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ kriId: this.kriId, systemName: app, period, value: valueNum, valueField: this.metricKey })
+					});
+					if (!res.ok) throw new Error(await res.text());
+					const payload = await res.json();
+					this.applications = new Map(Object.entries(payload.kri.applications || {}).map(([k, arr]) => [k, arr.map(p => ({ ...p }))]));
+					globalKRIData[this.kriId] = payload.kri;
+					this.selectedApp = app;
+					this.refresh();
+					this.showMessage(messageDiv, `Saved ${period} for ${app}.`, 'success');
+					showDataStatus('Data saved!', 'success');
+					document.getElementById(`${this.kriId}MetricValue`).value = '';
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Save failed', 'error');
+					showDataStatus('Save failed', 'error');
+				}
+			}
+
+			async handleUpdateDataPoint() {
+				const app = document.getElementById(`${this.kriId}UpdateApp`).value;
+				const period = document.getElementById(`${this.kriId}UpdatePeriod`).value.trim();
+				const newValueRaw = document.getElementById(`${this.kriId}UpdateValue`).value;
+				const messageDiv = document.getElementById(`${this.kriId}UpdateMessage`);
+				if (!app) { this.showMessage(messageDiv, 'Select system', 'error'); return; }
+				const payload = { kriId: this.kriId, systemName: app, period };
+				if (newValueRaw !== '') payload.value = parseFloat(newValueRaw);
+				try {
+					const res = await fetch('/api/update-data-point', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+					if (!res.ok) throw new Error(await res.text());
+					const data = await res.json();
+					this.applications = new Map(Object.entries(data.kri.applications || {}).map(([k, arr]) => [k, arr.map(p => ({ ...p }))]));
+					globalKRIData[this.kriId] = data.kri;
+					this.refresh();
+					this.showMessage(messageDiv, 'Updated successfully', 'success');
+					showDataStatus('Updated!', 'success');
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Update failed', 'error');
+					showDataStatus('Update failed', 'error');
+				}
+			}
+
+			async handleDeleteDataPoint() {
+				const app = document.getElementById(`${this.kriId}DeleteApp`).value;
+				const period = document.getElementById(`${this.kriId}DeletePeriodSelect`).value;
+				const messageDiv = document.getElementById(`${this.kriId}UpdateMessage`);
+				if (!app) { this.showMessage(messageDiv, 'Select system', 'error'); return; }
+				if (!period) { this.showMessage(messageDiv, 'Select period', 'error'); return; }
+				try {
+					const res = await fetch('/api/delete-data-point', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kriId: this.kriId, systemName: app, period }) });
+					if (!res.ok) throw new Error(await res.text());
+					const data = await res.json();
+					this.applications = new Map(Object.entries(data.kri.applications || {}).map(([k, arr]) => [k, arr.map(p => ({ ...p }))]));
+					globalKRIData[this.kriId] = data.kri;
+					this.refresh();
+					this.showMessage(messageDiv, 'Deleted', 'success');
+					showDataStatus('Deleted!', 'success');
+				} catch (err) {
+					console.error(err);
+					this.showMessage(messageDiv, 'Delete failed', 'error');
+					showDataStatus('Delete failed', 'error');
+				}
+			}
+
+			showMessage(element, text, type) {
+				element.innerHTML = `<div class="message message-${type}">${text}</div>`;
+				setTimeout(() => element.innerHTML = '', 3000);
+			}
+
+			initCharts() {
+				const trendCtx = document.getElementById(`${this.kriId}TrendChart`).getContext('2d');
+				this.charts.trend = new Chart(trendCtx, { type: 'line', data: { labels: [], datasets: [{ label: this.metricLabel, data: [], borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.1)', borderWidth: 3, fill: true, tension: 0.4, pointRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } } });
+				const compCtx = document.getElementById(`${this.kriId}ComparisonChart`).getContext('2d');
+				this.charts.comparison = new Chart(compCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: true, position: 'top' } } } });
+				const compMainCtx = document.getElementById(`${this.kriId}ComparisonChartMain`).getContext('2d');
+				this.charts.comparisonMain = new Chart(compMainCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+			}
+
+			updateUI() { this.updateSelectors(); this.updateKPIs(); this.updateCharts(); }
+
+			updateSelectors() {
+				const appSelect = document.getElementById(`${this.kriId}AppSelect`);
+				if (appSelect) { appSelect.innerHTML = '<option value="">Select a system...</option>'; }
+				const dataAppSelect = document.getElementById(`${this.kriId}DataApp`);
+				if (dataAppSelect) { dataAppSelect.innerHTML = '<option value="">Select system...</option>'; }
+				const updAppSelect = document.getElementById(`${this.kriId}UpdateApp`);
+				if (updAppSelect) { updAppSelect.innerHTML = '<option value="">Select system...</option>'; }
+				const delAppSelect = document.getElementById(`${this.kriId}DeleteApp`);
+				if (delAppSelect) { delAppSelect.innerHTML = '<option value="">Select system...</option>'; }
+				const delSysSelect = document.getElementById(`${this.kriId}DeleteSystemSelect`);
+				if (delSysSelect) { delSysSelect.innerHTML = '<option value="">Select system...</option>'; }
+
+				this.applications.forEach((_, name) => {
+					const option = document.createElement('option'); option.value = name; option.textContent = name; option.selected = name === this.selectedApp;
+					if (appSelect) appSelect.appendChild(option.cloneNode(true));
+					if (dataAppSelect) dataAppSelect.appendChild(option.cloneNode(true));
+					if (updAppSelect) updAppSelect.appendChild(option.cloneNode(true));
+					if (delAppSelect) delAppSelect.appendChild(option.cloneNode(true));
+					if (delSysSelect) delSysSelect.appendChild(option);
+				});
+
+				const allPeriods = this.getAllPeriods();
+				const labelFormatter = this.periodType === 'month' ? (p) => this.formatMonthPeriod(p) : (p) => p;
+				const startSel = document.getElementById(`${this.kriId}FilterStart`);
+				const endSel = document.getElementById(`${this.kriId}FilterEnd`);
+				if (startSel) {
+					startSel.innerHTML = '<option value="">Start...</option>';
+					allPeriods.forEach(p => {
+						const opt = document.createElement('option'); opt.value = p; opt.textContent = labelFormatter(p);
+						startSel.appendChild(opt);
+					});
+					if (this.filterStart) startSel.value = this.filterStart;
+				}
+				if (endSel) {
+					endSel.innerHTML = '<option value="">End...</option>';
+					allPeriods.forEach(p => {
+						const opt = document.createElement('option'); opt.value = p; opt.textContent = labelFormatter(p);
+						endSel.appendChild(opt);
+					});
+					if (this.filterEnd) endSel.value = this.filterEnd;
+				}
+
+				if (delAppSelect) this.updateDeletePeriodOptions(delAppSelect.value);
+			}
+
+			updateDeletePeriodOptions(appName) {
+				const periodSelect = document.getElementById(`${this.kriId}DeletePeriodSelect`);
+				if (!periodSelect) return;
+				periodSelect.innerHTML = '<option value="">Select period...</option>';
+				if (appName && this.applications.has(appName)) {
+					const data = this.applications.get(appName);
+					data.forEach(item => {
+						const opt = document.createElement('option');
+						const label = this.periodType === 'month' ? this.formatMonthPeriod(item.period) : item.period;
+						opt.value = item.period;
+						opt.textContent = label;
+						periodSelect.appendChild(opt);
+					});
+				}
+			}
+
+			getAllPeriods() {
+				const periods = new Set();
+				this.applications.forEach(data => { data.forEach(item => periods.add(item.period)); });
+				const arr = Array.from(periods);
+				arr.sort((a, b) => this.comparePeriods(a, b));
+				return arr;
+			}
+
+			comparePeriods(a, b) {
+				if (this.periodType === 'month') {
+					const [am, ay] = a.split('-').map(Number);
+					const [bm, by] = b.split('-').map(Number);
+					if (ay !== by) return ay - by;
+					return am - bm;
+				}
+				const [aq, ayStr] = a.split('-'); const [bq, byStr] = b.split('-');
+				const ay = parseInt(ayStr, 10); const by = parseInt(byStr, 10);
+				const aqn = parseInt(aq.replace('Q', ''), 10); const bqn = parseInt(bq.replace('Q', ''), 10);
+				if (ay !== by) return ay - by;
+				return aqn - bqn;
+			}
+
+			applyPeriodFilter(dataArr) {
+				let base = [];
+				if (!this.filterStart && !this.filterEnd) base = dataArr.slice();
+				else {
+					base = dataArr.filter(d => {
+						const afterStart = !this.filterStart || this.comparePeriods(d.period, this.filterStart) >= 0;
+						const beforeEnd = !this.filterEnd || this.comparePeriods(d.period, this.filterEnd) <= 0;
+						return afterStart && beforeEnd;
+					});
+				}
+				return base.filter(d => isPeriodInGlobalKriFilter(d.period, this.periodType));
+			}
+
+			updateKPIs() {
+				if (!this.selectedApp || !this.applications.has(this.selectedApp)) {
+					const currentValueEl = document.getElementById(`${this.kriId}CurrentValue`);
+					const changeValueEl = document.getElementById(`${this.kriId}ChangeValue`);
+					const trendText = document.getElementById(`${this.kriId}TrendText`);
+					if (currentValueEl) currentValueEl.textContent = '-';
+					if (changeValueEl) changeValueEl.textContent = '-';
+					if (trendText) trendText.textContent = 'Select app';
+					return;
+				}
+				const allData = this.applications.get(this.selectedApp);
+				const data = this.applyPeriodFilter(allData);
+				const currentValueEl = document.getElementById(`${this.kriId}CurrentValue`);
+				const changeValueEl = document.getElementById(`${this.kriId}ChangeValue`);
+				const trendBadge = document.getElementById(`${this.kriId}TrendBadge`);
+				const trendIcon = document.getElementById(`${this.kriId}TrendIcon`);
+				const trendText = document.getElementById(`${this.kriId}TrendText`);
+				if (data.length === 0) {
+					if (currentValueEl) currentValueEl.textContent = '-';
+					if (changeValueEl) changeValueEl.textContent = '-';
+					if (trendText) trendText.textContent = 'No data';
+					return;
+				}
+				const latest = data[data.length - 1];
+				if (currentValueEl) currentValueEl.textContent = latest[this.metricKey];
+				if (data.length >= 2) {
+					const previous = data[data.length - 2];
+					const change = latest[this.metricKey] - previous[this.metricKey];
+					if (changeValueEl) changeValueEl.textContent = change > 0 ? `+${change}` : `${change}`;
+					if (trendBadge && trendIcon && trendText) {
+						const upIsGood = this.isHigherBetter;
+						const isGoodChange = (change > 0 && upIsGood) || (change < 0 && !upIsGood);
+						trendBadge.className = change === 0 ? 'trend trend-neutral' : (isGoodChange ? 'trend trend-down' : 'trend trend-up');
+						trendIcon.textContent = change > 0 ? '↗' : (change < 0 ? '↘' : '→');
+						trendText.textContent = change > 0 ? (upIsGood ? 'Improved' : 'Increased') : (change < 0 ? (upIsGood ? 'Declined' : 'Decreased') : 'Unchanged');
+					}
+					if (typeof this.threshold === 'number') {
+						const isAlert = this.isHigherBetter ? latest[this.metricKey] < this.threshold : latest[this.metricKey] > this.threshold;
+						const currentKpiCard = document.getElementById(`${this.kriId}CurrentKpi`);
+						const currentValue = document.getElementById(`${this.kriId}CurrentValue`);
+						if (currentKpiCard && currentValue) {
+							if (isAlert) {
+								currentKpiCard.className = 'kpi-card alert';
+								currentValue.className = 'kpi-value danger';
+							} else {
+								currentKpiCard.className = 'kpi-card';
+								currentValue.className = 'kpi-value';
+							}
+						}
+					}
+				} else {
+					if (changeValueEl) changeValueEl.textContent = '-';
+					if (trendText) trendText.textContent = 'Need more data';
+				}
+			}
+
+			updateCharts() {
+				if (this.selectedApp && this.applications.has(this.selectedApp)) {
+					const filtered = this.applyPeriodFilter(this.applications.get(this.selectedApp));
+					this.charts.trend.data.labels = filtered.map(d => this.periodType === 'month' ? this.formatMonthPeriod(d.period) : d.period);
+					this.charts.trend.data.datasets[0].data = filtered.map(d => d[this.metricKey]);
+					this.charts.trend.data.datasets[0].label = `${this.selectedApp} ${this.metricLabel}`;
+				} else {
+					this.charts.trend.data.labels = [];
+					this.charts.trend.data.datasets[0].data = [];
+				}
+				this.charts.trend.update();
+
+				const allPeriods = this.getAllPeriods();
+				const filteredPeriods = allPeriods.filter(p => isPeriodInGlobalKriFilter(p, this.periodType)).filter(p => {
+					const afterStart = !this.filterStart || this.comparePeriods(p, this.filterStart) >= 0;
+					const beforeEnd = !this.filterEnd || this.comparePeriods(p, this.filterEnd) <= 0;
+					return afterStart && beforeEnd;
+				});
+				const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#F7D794', '#96CEB4', '#A3BFFA', '#D4A4EB', '#FFCC70'];
+				const datasets = [];
+				let colorIndex = 0;
+				this.applications.forEach((data, name) => {
+					if (data.length > 0) {
+						datasets.push({
+							label: name,
+							data: filteredPeriods.map(period => { const item = data.find(d => d.period === period); return item ? item[this.metricKey] : 0; }),
+							backgroundColor: colors[colorIndex % colors.length],
+							borderColor: colors[colorIndex % colors.length],
+							borderWidth: 1
+						});
+						colorIndex++;
+					}
+				});
+				const labelFormatter = this.periodType === 'month' ? (p) => this.formatMonthPeriod(p) : (p) => p;
+				this.charts.comparison.data.labels = filteredPeriods.map(labelFormatter);
+				this.charts.comparison.data.datasets = datasets;
+				this.charts.comparison.update();
+				this.charts.comparisonMain.data.labels = filteredPeriods.map(labelFormatter);
+				this.charts.comparisonMain.data.datasets = datasets;
+				this.charts.comparisonMain.update();
+			}
+
+			formatMonthPeriod(period) {
+				const [month, year] = period.split('-');
+				const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+				return `${months[parseInt(month) - 1]} ${year}`;
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', async () => {
+			setActiveNav(navKRI);
+
+			const data = await loadKRIData();
+			dashboards = {
+				kri2: new BaseDashboard(data, 'kri2', 'percentage', 95, true),
+				kri3: new BaseDashboard(data, 'kri3', 'percentage', 80, true),
+				kri4: new BaseDashboard(data, 'kri4', 'count', 1, false),
+				kri5: new BaseDashboard(data, 'kri5', 'percentage', 0, false),
+				kri6: new BaseDashboard(data, 'kri6', 'percentage', 10, false),
+				kri8: new ApplicationsKRIDashboard(data, 'kri8', 'Days', 'value', 120, true, 'quarter'),
+				kri9: new BaseDashboard(data, 'kri9', 'count', 0, false),
+				kri10: new ApplicationsKRIDashboard(data, 'kri10', 'Incidents', 'incidents', 2, false, 'month'),
+				kri12: new ApplicationsKRIDashboard(data, 'kri12', 'Incidents', 'incidents', 0, false, 'quarter'),
+				kri13: new ApplicationsKRIDashboard(data, 'kri13', 'Incidents', 'value', 2, false, 'quarter'),
+				kri15: new BaseDashboard(data, 'kri15', 'percentage', 0, false),
+				kri18: new BaseDashboard(data, 'kri18', 'percentage', 10, false),
+				kri19: new ApplicationsKRIDashboard(data, 'kri19', 'Minutes', 'value', null, false, 'quarter'),
+				kri20: new BaseDashboard(data, 'kri20', 'count', 0, false),
+				kri21: new BaseDashboard(data, 'kri21', 'count', 0, false),
+				kri22: new BaseDashboard(data, 'kri22', 'percentage', 70, true),
+				kri27: new BaseDashboard(data, 'kri27', 'percentage', 0, false),
+				kri28: new BaseDashboard(data, 'kri28', 'percentage', 10, false)
+			};
+
+			const filterBtn = document.getElementById('kriFilterBtn');
+			const exportBtn = document.getElementById('kriExportBtn');
+			const filterPanel = document.getElementById('kriFilterPanel');
+			const exportPanel = document.getElementById('kriExportPanel');
+			filterBtn.addEventListener('click', ()=>{
+				exportPanel.classList.remove('open');
+				filterPanel.classList.toggle('open');
+			});
+			exportBtn.addEventListener('click', ()=>{
+				filterPanel.classList.remove('open');
+				exportPanel.classList.toggle('open');
+			});
+
+			document.getElementById('kriApplyFilter').addEventListener('click', ()=>{
+				const y = document.getElementById('kriYearSelect').value;
+				const q = document.getElementById('kriQuarterSelect').value;
+				if(!y && !q){ showDataStatus('Select at least a year', 'error'); return; }
+				globalKriFilter.year = y || null; globalKriFilter.quarter = q || null;
+				Object.values(dashboards).forEach(d=> d.refresh ? d.refresh() : d.updateUI());
+				if(y && q) showDataStatus(`Applied filter ${q} ${y}`,'success');
+				else if(y) showDataStatus(`Applied filter ${y}`,'success');
+				else showDataStatus('Applied filter','success');
+			});
+			document.getElementById('kriClearFilter').addEventListener('click', ()=>{
+				globalKriFilter.year = null; globalKriFilter.quarter = null;
+				Object.values(dashboards).forEach(d=> d.refresh ? d.refresh() : d.updateUI());
+				document.getElementById('kriYearSelect').value = '';
+				document.getElementById('kriQuarterSelect').value = '';
+				showDataStatus('Filter cleared','success');
+			});
+
+			function downloadBlob(blob, filename){
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+				a.remove(); window.URL.revokeObjectURL(url);
+			}
+
+			document.getElementById('kriExportDownload').addEventListener('click', async ()=>{
+				const fmt = document.getElementById('kriExportFormat').value || 'html';
+				const params = new URLSearchParams();
+				if(globalKriFilter.year) params.append('year', globalKriFilter.year);
+				if(globalKriFilter.quarter) params.append('quarter', globalKriFilter.quarter);
+				params.append('format', fmt);
+				try{
+					const res = await fetch(`/api/kri/report?${params.toString()}`);
+					if(!res.ok) throw new Error(await res.text());
+					const blob = await res.blob();
+					const cd = res.headers.get('Content-Disposition') || '';
+					const fallback = `kri_report_${(globalKriFilter.quarter||'ALL')}_${(globalKriFilter.year||'ALL')}.${fmt}`;
+					const filename = (cd.split('filename=')[1] || '').replaceAll('"','') || fallback;
+					downloadBlob(blob, filename);
+					showDataStatus('Report downloaded','success');
+				}catch(e){
+					showDataStatus('Export failed','error');
+				}
+			});
+
+			populateGlobalYearOptions();
+
+			window.addEventListener('hashchange', () => {
+				const hash = window.location.hash.replace('#', '');
+				showDashboard(hash || 'mainPage');
+			});
+			showDashboard(window.location.hash.replace('#', '') || 'mainPage');
+		});
+	</script>
+</body>
+</html>

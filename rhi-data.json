@@ -1,0 +1,118 @@
+{
+  "rhi96": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi97": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi98": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi102": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi103": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi104": {
+    "data": [
+      { "period": "01-2024", "value": 0 },
+      { "period": "02-2024", "value": 0 },
+      { "period": "03-2024", "value": 0 },
+      { "period": "04-2024", "value": 0 },
+      { "period": "05-2024", "value": 0 },
+      { "period": "06-2024", "value": 0 },
+      { "period": "07-2024", "value": 0 },
+      { "period": "08-2024", "value": 0 },
+      { "period": "09-2024", "value": 0 },
+      { "period": "10-2024", "value": 0 },
+      { "period": "11-2024", "value": 0 },
+      { "period": "12-2024", "value": 0 }
+    ]
+  },
+  "rhi106": { "data": [
+    { "period": "04-2024", "value": 0.5 },
+    { "period": "05-2024", "value": 0.5 },
+    { "period": "06-2024", "value": 0.5 }
+  ]},
+  "rhi107": { "data": [
+    { "period": "04-2024", "days": 1, "hours": 33, "minutes": 0 },
+    { "period": "05-2024", "days": 1, "hours": 37, "minutes": 23 },
+    { "period": "06-2024", "days": 0, "hours": 57, "minutes": 25 }
+  ]},
+  "rhi111": { "data": [
+    { "period": "04-2024", "value": 0 }, { "period": "05-2024", "value": 0 }, { "period": "06-2024", "value": 0 }
+  ]},
+  "rhi112": { "data": [
+    { "period": "04-2024", "value": 0 }, { "period": "05-2024", "value": 0 }, { "period": "06-2024", "value": 0 }
+  ]},
+  "rhi113": { "data": [
+    { "period": "04-2024", "value": 0 }, { "period": "05-2024", "value": 0 }, { "period": "06-2024", "value": 0 }
+  ]}
+}
+
